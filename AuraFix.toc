@@ -3,5 +3,9 @@
 ## Notes: Fixes Blizzard's aura update performance issue
 ## Author: ChadAPSheridan
 ## Version: 1.0.0
+
+## SavedVariables: AuraFixDB
+
 AuraFix.lua
+BlizzardEditMode.lua
 AuraFix_Config.lua

@@ -4,15 +4,6 @@
 local ADDON, ns = ...
 local AuraFix = _G.AuraFix or {}
 
--- Default settings
-AuraFixDB = AuraFixDB or {
-    buffSize = 32,
-    debuffSize = 32,
-    buffX = 0,
-    buffY = 0,
-    debuffX = 0,
-    debuffY = -50,
-}
 
 local function ApplyAuraFixSettings()
     if AuraFixFrame then
@@ -21,12 +12,19 @@ local function ApplyAuraFixSettings()
         for i, btn in ipairs(AuraFix.buttons or {}) do
             btn:SetSize(AuraFixDB.buffSize, AuraFixDB.buffSize)
         end
+        -- Force full update to apply growth direction
+        if AuraFix.UpdateAllAuras then
+            AuraFix:UpdateAllAuras(AuraFixFrame, "player", "HELPFUL", 20)
+        end
     end
     if AuraFixDebuffFrame then
         AuraFixDebuffFrame:SetSize(AuraFixDB.debuffSize * 10, AuraFixDB.debuffSize)
         AuraFixDebuffFrame:SetPoint("TOPLEFT", AuraFixFrame, "BOTTOMLEFT", AuraFixDB.debuffX, AuraFixDB.debuffY)
         for i, btn in ipairs(AuraFix.debuffButtons or {}) do
             btn:SetSize(AuraFixDB.debuffSize, AuraFixDB.debuffSize)
+        end
+        if AuraFix.UpdateAllAuras then
+            AuraFix:UpdateAllAuras(AuraFixDebuffFrame, "player", "HARMFUL", 20)
         end
     end
 end
@@ -35,9 +33,32 @@ AuraFix.ApplySettings = ApplyAuraFixSettings
 
 -- Edit Mode integration (Retail only)
 
--- Always create the config panel and register it with Interface Options
 local panel = CreateFrame("Frame", "AuraFixConfigPanel", UIParent)
 panel.name = "AuraFix"
+
+
+-- Helper for dropdowns
+local function CreateDropdown(parent, label, items, value, onChange)
+    local dd = CreateFrame("Frame", nil, parent, "UIDropDownMenuTemplate")
+    dd.Label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    dd.Label:SetPoint("TOPLEFT", dd, "TOPLEFT", 16, 8)
+    dd.Label:SetText(label)
+    UIDropDownMenu_SetWidth(dd, 120)
+    UIDropDownMenu_Initialize(dd, function(self, level)
+        for _, v in ipairs(items) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = v
+            info.checked = (v == value())
+            info.func = function()
+                onChange(v)
+                UIDropDownMenu_SetSelectedValue(dd, v)
+            end
+            UIDropDownMenu_AddButton(info)
+        end
+    end)
+    UIDropDownMenu_SetSelectedValue(dd, value())
+    return dd
+end
 
 local buffSizeSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
 buffSizeSlider:SetMinMaxValues(16, 64)
@@ -67,12 +88,127 @@ debuffSizeSlider:SetScript("OnValueChanged", function(self, value)
     ApplyAuraFixSettings()
 end)
 
--- Utility to get screen size
 local function GetScreenSize()
     local width = GetScreenWidth and GetScreenWidth() or 1920
     local height = GetScreenHeight and GetScreenHeight() or 1080
     return width, height
 end
+
+
+-- Sliders first
+local buffSizeSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+buffSizeSlider:SetMinMaxValues(16, 64)
+buffSizeSlider:SetValueStep(1)
+buffSizeSlider:SetPoint("TOPLEFT", 20, -40)
+buffSizeSlider:SetWidth(200)
+buffSizeSlider:SetValue(AuraFixDB.buffSize)
+buffSizeSlider.Text:SetText("Buff Size")
+buffSizeSlider.Low:SetText("16")
+buffSizeSlider.High:SetText("64")
+buffSizeSlider:SetScript("OnValueChanged", function(self, value)
+    AuraFixDB.buffSize = value
+    ApplyAuraFixSettings()
+end)
+
+local debuffSizeSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+debuffSizeSlider:SetMinMaxValues(16, 64)
+debuffSizeSlider:SetValueStep(1)
+debuffSizeSlider:SetPoint("TOPLEFT", buffSizeSlider, "BOTTOMLEFT", 0, -40)
+debuffSizeSlider:SetWidth(200)
+debuffSizeSlider:SetValue(AuraFixDB.debuffSize)
+debuffSizeSlider.Text:SetText("Debuff Size")
+debuffSizeSlider.Low:SetText("16")
+debuffSizeSlider.High:SetText("64")
+debuffSizeSlider:SetScript("OnValueChanged", function(self, value)
+    AuraFixDB.debuffSize = value
+    ApplyAuraFixSettings()
+end)
+
+local buffXSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+buffXSlider:SetMinMaxValues(-960, 960)
+buffXSlider:SetValueStep(1)
+buffXSlider:SetPoint("TOPLEFT", debuffSizeSlider, "BOTTOMLEFT", 0, -40)
+buffXSlider:SetWidth(200)
+buffXSlider:SetValue(AuraFixDB.buffX)
+buffXSlider.Text:SetText("Buff X Offset")
+buffXSlider.Low:SetText("-960")
+buffXSlider.High:SetText("960")
+buffXSlider:SetScript("OnValueChanged", function(self, value)
+    AuraFixDB.buffX = value
+    ApplyAuraFixSettings()
+end)
+
+buffYSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+buffYSlider:SetMinMaxValues(-540, 540)
+buffYSlider:SetValueStep(1)
+buffYSlider:SetPoint("TOPLEFT", buffXSlider, "BOTTOMLEFT", 0, -40)
+buffYSlider:SetWidth(200)
+buffYSlider.Text:SetText("Buff Y Offset")
+buffYSlider.Low:SetText("-540")
+buffYSlider.High:SetText("540")
+local function OnBuffYChanged(self, value)
+    value = math.floor(value + 0.5)
+    if AuraFixDB.buffY ~= value then
+        AuraFixDB.buffY = value
+        ApplyAuraFixSettings()
+    end
+end
+buffYSlider:SetScript("OnValueChanged", OnBuffYChanged)
+
+local debuffXSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+debuffXSlider:SetMinMaxValues(-960, 960)
+debuffXSlider:SetValueStep(1)
+debuffXSlider:SetPoint("TOPLEFT", buffYSlider, "BOTTOMLEFT", 0, -40)
+debuffXSlider:SetWidth(200)
+debuffXSlider:SetValue(AuraFixDB.debuffX)
+debuffXSlider.Text:SetText("Debuff X Offset")
+debuffXSlider.Low:SetText("-960")
+debuffXSlider.High:SetText("960")
+debuffXSlider:SetScript("OnValueChanged", function(self, value)
+    AuraFixDB.debuffX = value
+    ApplyAuraFixSettings()
+end)
+
+local debuffYSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+debuffYSlider:SetMinMaxValues(-540, 540)
+debuffYSlider:SetValueStep(1)
+debuffYSlider:SetPoint("TOPLEFT", debuffXSlider, "BOTTOMLEFT", 0, -40)
+debuffYSlider:SetWidth(200)
+debuffYSlider:SetValue(AuraFixDB.debuffY)
+debuffYSlider.Text:SetText("Debuff Y Offset")
+debuffYSlider.Low:SetText("-540")
+debuffYSlider.High:SetText("540")
+debuffYSlider:SetScript("OnValueChanged", function(self, value)
+    AuraFixDB.debuffY = value
+    ApplyAuraFixSettings()
+end)
+
+-- Now dropdowns and filter box, anchored after sliders
+local lastAnchor = debuffYSlider
+local buffGrowDD = CreateDropdown(panel, "Buff Bar Growth", {"LEFT", "RIGHT"}, function() return AuraFixDB.buffGrow end, function(v) AuraFixDB.buffGrow = v; ApplyAuraFixSettings() end)
+buffGrowDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
+lastAnchor = buffGrowDD
+
+local debuffGrowDD = CreateDropdown(panel, "Debuff Bar Growth", {"LEFT", "RIGHT"}, function() return AuraFixDB.debuffGrow end, function(v) AuraFixDB.debuffGrow = v; ApplyAuraFixSettings() end)
+debuffGrowDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
+lastAnchor = debuffGrowDD
+
+local sortDD = CreateDropdown(panel, "Sort Auras By", {"INDEX", "TIME", "NAME"}, function() return AuraFixDB.sortMethod end, function(v) AuraFixDB.sortMethod = v; ApplyAuraFixSettings() end)
+sortDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
+lastAnchor = sortDD
+
+local filterBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+filterBox:SetSize(120, 24)
+filterBox:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 16, -20)
+filterBox:SetAutoFocus(false)
+filterBox:SetText(AuraFixDB.filterText or "")
+filterBox:SetScript("OnTextChanged", function(self)
+    AuraFixDB.filterText = self:GetText()
+    ApplyAuraFixSettings()
+end)
+local filterLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+filterLabel:SetPoint("BOTTOMLEFT", filterBox, "TOPLEFT", 0, 4)
+filterLabel:SetText("Filter (substring)")
 
 -- Buff and debuff position sliders (created with dummy values, updated on panel show)
 local buffXSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
@@ -117,7 +253,6 @@ debuffXSlider:SetScript("OnValueChanged", function(self, value)
     ApplyAuraFixSettings()
 end)
 
-local debuffYSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
 debuffYSlider:SetMinMaxValues(-540, 540)
 debuffYSlider:SetValueStep(1)
 debuffYSlider:SetPoint("TOPLEFT", debuffXSlider, "BOTTOMLEFT", 0, -40)
@@ -130,22 +265,22 @@ debuffYSlider:SetScript("OnValueChanged", function(self, value)
     AuraFixDB.debuffY = value
     ApplyAuraFixSettings()
 end)
+lastAnchor = debuffYSlider
 
 -- Update slider bounds on panel show
 panel:HookScript("OnShow", function()
-    local w, h = GetScreenSize()
-    buffXSlider:SetMinMaxValues(-w/2, w/2)
-    buffXSlider.Low:SetText(tostring(-math.floor(w/2)))
-    buffXSlider.High:SetText(tostring(math.floor(w/2)))
-    buffYSlider:SetMinMaxValues(-h/2, h/2)
-    buffYSlider.Low:SetText(tostring(-math.floor(h/2)))
-    buffYSlider.High:SetText(tostring(math.floor(h/2)))
-    debuffXSlider:SetMinMaxValues(-w/2, w/2)
-    debuffXSlider.Low:SetText(tostring(-math.floor(w/2)))
-    debuffXSlider.High:SetText(tostring(math.floor(w/2)))
-    debuffYSlider:SetMinMaxValues(-h/2, h/2)
-    debuffYSlider.Low:SetText(tostring(-math.floor(h/2)))
-    debuffYSlider.High:SetText(tostring(math.floor(h/2)))
+    -- Only update slider values, not min/max/labels
+    buffSizeSlider:SetValue(AuraFixDB.buffSize or 32)
+    debuffSizeSlider:SetValue(AuraFixDB.debuffSize or 32)
+    buffXSlider:SetValue(AuraFixDB.buffX or 0)
+    buffYSlider:SetValue(AuraFixDB.buffY or 0)
+    debuffXSlider:SetValue(AuraFixDB.debuffX or 0)
+    debuffYSlider:SetValue(AuraFixDB.debuffY or -50)
+    filterBox:SetText(AuraFixDB.filterText or "")
+    -- Dropdowns: force update selection
+    UIDropDownMenu_SetSelectedValue(buffGrowDD, AuraFixDB.buffGrow or "RIGHT")
+    UIDropDownMenu_SetSelectedValue(debuffGrowDD, AuraFixDB.debuffGrow or "RIGHT")
+    UIDropDownMenu_SetSelectedValue(sortDD, AuraFixDB.sortMethod or "INDEX")
 end)
 
 -- Register the panel with Interface Options or new Settings API
@@ -157,12 +292,20 @@ else
     panel:Show()
 end
 
--- Add a slash command to open the config panel
 SLASH_AURAFIX1 = "/aurafix"
 SlashCmdList["AURAFIX"] = function()
     if Settings and Settings.OpenToCategory then
         -- Dragonflight+ API: open to our category
+        for _, cat in ipairs(Settings.GetAddOnCategories and Settings.GetAddOnCategories() or {}) do
+            if cat.name == "AuraFix" then
+                Settings.OpenToCategory(cat)
+                return
+            end
+        end
         Settings.OpenToCategory(panel.name or panel)
+    elseif InterfaceOptionsFrame_OpenToCategory then
+        InterfaceOptionsFrame_OpenToCategory(panel)
+        InterfaceOptionsFrame_OpenToCategory(panel) -- Blizzard bug workaround
     else
         panel:Show()
     end
