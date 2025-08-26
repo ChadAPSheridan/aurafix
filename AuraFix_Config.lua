@@ -80,6 +80,15 @@ AuraFix.ApplySettings = ApplyAuraFixSettings
 local panel = CreateFrame("Frame", "AuraFixConfigPanel", UIParent)
 panel.name = "AuraFix"
 
+-- Create left and right columns
+local leftColumn = CreateFrame("Frame", nil, panel)
+leftColumn:SetPoint("TOPLEFT", 20, -20)
+leftColumn:SetSize(300, 600)
+
+local rightColumn = CreateFrame("Frame", nil, panel)
+rightColumn:SetPoint("TOPLEFT", leftColumn, "TOPRIGHT", 40, 0)
+rightColumn:SetSize(300, 600)
+
 local function CreateDropdown(parent, label, items, value, onChange)
     local dd = CreateFrame("Frame", nil, parent, "UIDropDownMenuTemplate")
     dd.Label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -103,17 +112,34 @@ local function CreateDropdown(parent, label, items, value, onChange)
 end
 
 -- Create all sliders
-local buffSizeSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+local buffSizeSlider = CreateFrame("Slider", nil, leftColumn, "OptionsSliderTemplate")
 buffSizeSlider:SetMinMaxValues(16, 64)
 buffSizeSlider:SetValueStep(1)
-buffSizeSlider:SetPoint("TOPLEFT", 20, -40)
+buffSizeSlider:SetPoint("TOPLEFT", 0, -20)
 buffSizeSlider:SetWidth(200)
 buffSizeSlider:SetValue(AuraFixDB.buffSize)
 buffSizeSlider.Text:SetText("Buff Size")
 buffSizeSlider.Low:SetText("16")
 buffSizeSlider.High:SetText("64")
+-- Create value textbox for buff size
+local buffSizeBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+buffSizeBox:SetSize(50, 20)
+buffSizeBox:SetPoint("LEFT", buffSizeSlider, "RIGHT", 10, 0)
+buffSizeBox:SetAutoFocus(false)
+buffSizeBox:SetMaxLetters(2)
+buffSizeBox:SetScript("OnEnterPressed", function(self)
+    local value = tonumber(self:GetText())
+    if value then
+        value = math.max(16, math.min(64, value))
+        self:SetText(value)
+        buffSizeSlider:SetValue(value)
+    end
+    self:ClearFocus()
+end)
+
 buffSizeSlider:SetScript("OnValueChanged", function(self, value)
     AuraFixDB.buffSize = value
+    buffSizeBox:SetText(tostring(math.floor(value)))
     ApplyAuraFixSettings()
 end)
 
@@ -126,8 +152,25 @@ debuffSizeSlider:SetValue(AuraFixDB.debuffSize)
 debuffSizeSlider.Text:SetText("Debuff Size")
 debuffSizeSlider.Low:SetText("16")
 debuffSizeSlider.High:SetText("64")
+-- Create value textbox for debuff size
+local debuffSizeBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+debuffSizeBox:SetSize(50, 20)
+debuffSizeBox:SetPoint("LEFT", debuffSizeSlider, "RIGHT", 10, 0)
+debuffSizeBox:SetAutoFocus(false)
+debuffSizeBox:SetMaxLetters(2)
+debuffSizeBox:SetScript("OnEnterPressed", function(self)
+    local value = tonumber(self:GetText())
+    if value then
+        value = math.max(16, math.min(64, value))
+        self:SetText(tostring(value))
+        debuffSizeSlider:SetValue(value)
+    end
+    self:ClearFocus()
+end)
+
 debuffSizeSlider:SetScript("OnValueChanged", function(self, value)
     AuraFixDB.debuffSize = value
+    debuffSizeBox:SetText(tostring(math.floor(value)))
     ApplyAuraFixSettings()
 end)
 
@@ -140,8 +183,25 @@ buffXSlider:SetValue(AuraFixDB.buffX)
 buffXSlider.Text:SetText("Buff X Offset")
 buffXSlider.Low:SetText("-960")
 buffXSlider.High:SetText("960")
+-- Create value textbox for buff X offset
+local buffXBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+buffXBox:SetSize(50, 20)
+buffXBox:SetPoint("LEFT", buffXSlider, "RIGHT", 10, 0)
+buffXBox:SetAutoFocus(false)
+buffXBox:SetMaxLetters(4)
+buffXBox:SetScript("OnEnterPressed", function(self)
+    local value = tonumber(self:GetText())
+    if value then
+        value = math.max(-960, math.min(960, value))
+        self:SetText(tostring(value))
+        buffXSlider:SetValue(value)
+    end
+    self:ClearFocus()
+end)
+
 buffXSlider:SetScript("OnValueChanged", function(self, value)
     AuraFixDB.buffX = value
+    buffXBox:SetText(tostring(math.floor(value)))
     ApplyAuraFixSettings()
 end)
 
@@ -154,8 +214,25 @@ buffYSlider:SetValue(AuraFixDB.buffY)
 buffYSlider.Text:SetText("Buff Y Offset")
 buffYSlider.Low:SetText("-540")
 buffYSlider.High:SetText("540")
+-- Create value textbox for buff Y offset
+local buffYBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+buffYBox:SetSize(50, 20)
+buffYBox:SetPoint("LEFT", buffYSlider, "RIGHT", 10, 0)
+buffYBox:SetAutoFocus(false)
+buffYBox:SetMaxLetters(4)
+buffYBox:SetScript("OnEnterPressed", function(self)
+    local value = tonumber(self:GetText())
+    if value then
+        value = math.max(-540, math.min(540, value))
+        self:SetText(tostring(value))
+        buffYSlider:SetValue(value)
+    end
+    self:ClearFocus()
+end)
+
 buffYSlider:SetScript("OnValueChanged", function(self, value)
     AuraFixDB.buffY = value
+    buffYBox:SetText(tostring(math.floor(value)))
     ApplyAuraFixSettings()
 end)
 
@@ -168,8 +245,25 @@ debuffXSlider:SetValue(AuraFixDB.debuffX)
 debuffXSlider.Text:SetText("Debuff X Offset")
 debuffXSlider.Low:SetText("-960")
 debuffXSlider.High:SetText("960")
+-- Create value textbox for debuff X offset
+local debuffXBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+debuffXBox:SetSize(50, 20)
+debuffXBox:SetPoint("LEFT", debuffXSlider, "RIGHT", 10, 0)
+debuffXBox:SetAutoFocus(false)
+debuffXBox:SetMaxLetters(4)
+debuffXBox:SetScript("OnEnterPressed", function(self)
+    local value = tonumber(self:GetText())
+    if value then
+        value = math.max(-960, math.min(960, value))
+        self:SetText(tostring(value))
+        debuffXSlider:SetValue(value)
+    end
+    self:ClearFocus()
+end)
+
 debuffXSlider:SetScript("OnValueChanged", function(self, value)
     AuraFixDB.debuffX = value
+    debuffXBox:SetText(tostring(math.floor(value)))
     ApplyAuraFixSettings()
 end)
 
@@ -182,46 +276,57 @@ debuffYSlider:SetValue(AuraFixDB.debuffY)
 debuffYSlider.Text:SetText("Debuff Y Offset")
 debuffYSlider.Low:SetText("-540")
 debuffYSlider.High:SetText("540")
+-- Create value textbox for debuff Y offset
+local debuffYBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+debuffYBox:SetSize(50, 20)
+debuffYBox:SetPoint("LEFT", debuffYSlider, "RIGHT", 10, 0)
+debuffYBox:SetAutoFocus(false)
+debuffYBox:SetMaxLetters(4)
+debuffYBox:SetScript("OnEnterPressed", function(self)
+    local value = tonumber(self:GetText())
+    if value then
+        value = math.max(-540, math.min(540, value))
+        self:SetText(tostring(value))
+        debuffYSlider:SetValue(value)
+    end
+    self:ClearFocus()
+end)
+
 debuffYSlider:SetScript("OnValueChanged", function(self, value)
     AuraFixDB.debuffY = value
+    debuffYBox:SetText(tostring(math.floor(value)))
     ApplyAuraFixSettings()
 end)
 
 -- Create dropdowns and filter box
-local lastAnchor = debuffYSlider
+-- Create dropdowns in right column
+local buffGrowDD = CreateDropdown(rightColumn, "Buff Bar Growth", {"LEFT", "RIGHT"}, function() return AuraFixDB.buffGrow end, function(v) AuraFixDB.buffGrow = v; ApplyAuraFixSettings() end)
+buffGrowDD:SetPoint("TOPLEFT", 0, -20)
 
-local buffGrowDD = CreateDropdown(panel, "Buff Bar Growth", {"LEFT", "RIGHT"}, function() return AuraFixDB.buffGrow end, function(v) AuraFixDB.buffGrow = v; ApplyAuraFixSettings() end)
-buffGrowDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
-lastAnchor = buffGrowDD
+local debuffGrowDD = CreateDropdown(rightColumn, "Debuff Bar Growth", {"LEFT", "RIGHT"}, function() return AuraFixDB.debuffGrow end, function(v) AuraFixDB.debuffGrow = v; ApplyAuraFixSettings() end)
+debuffGrowDD:SetPoint("TOPLEFT", buffGrowDD, "BOTTOMLEFT", 0, -40)
 
-local debuffGrowDD = CreateDropdown(panel, "Debuff Bar Growth", {"LEFT", "RIGHT"}, function() return AuraFixDB.debuffGrow end, function(v) AuraFixDB.debuffGrow = v; ApplyAuraFixSettings() end)
-debuffGrowDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
-lastAnchor = debuffGrowDD
-
-local sortDD = CreateDropdown(panel, "Sort Auras By", {"INDEX", "TIME", "NAME"}, function() return AuraFixDB.sortMethod end, function(v) AuraFixDB.sortMethod = v; ApplyAuraFixSettings() end)
-sortDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
-lastAnchor = sortDD
+local sortDD = CreateDropdown(rightColumn, "Sort Auras By", {"INDEX", "TIME", "NAME"}, function() return AuraFixDB.sortMethod end, function(v) AuraFixDB.sortMethod = v; ApplyAuraFixSettings() end)
+sortDD:SetPoint("TOPLEFT", debuffGrowDD, "BOTTOMLEFT", 0, -40)
 
 -- Create background toggle checkboxes
-local buffBackgroundCheck = CreateFrame("CheckButton", nil, panel, "InterfaceOptionsCheckButtonTemplate")
-buffBackgroundCheck:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -20)
+local buffBackgroundCheck = CreateFrame("CheckButton", nil, rightColumn, "InterfaceOptionsCheckButtonTemplate")
+buffBackgroundCheck:SetPoint("TOPLEFT", sortDD, "BOTTOMLEFT", 0, -40)
 buffBackgroundCheck.Text:SetText("Show Buff Background")
 buffBackgroundCheck:SetChecked(AuraFixDB.showBuffBackground)
 buffBackgroundCheck:SetScript("OnClick", function(self)
     AuraFixDB.showBuffBackground = self:GetChecked()
     ApplyAuraFixSettings()
 end)
-lastAnchor = buffBackgroundCheck
 
-local debuffBackgroundCheck = CreateFrame("CheckButton", nil, panel, "InterfaceOptionsCheckButtonTemplate")
-debuffBackgroundCheck:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -10)
+local debuffBackgroundCheck = CreateFrame("CheckButton", nil, rightColumn, "InterfaceOptionsCheckButtonTemplate")
+debuffBackgroundCheck:SetPoint("TOPLEFT", buffBackgroundCheck, "BOTTOMLEFT", 0, -10)
 debuffBackgroundCheck.Text:SetText("Show Debuff Background")
 debuffBackgroundCheck:SetChecked(AuraFixDB.showDebuffBackground)
 debuffBackgroundCheck:SetScript("OnClick", function(self)
     AuraFixDB.showDebuffBackground = self:GetChecked()
     ApplyAuraFixSettings()
 end)
-lastAnchor = debuffBackgroundCheck
 
 -- local filterBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
 -- filterBox:SetSize(120, 24)
@@ -245,6 +350,15 @@ panel:HookScript("OnShow", function()
     buffYSlider:SetValue(AuraFixDB.buffY or 0)
     debuffXSlider:SetValue(AuraFixDB.debuffX or 0)
     debuffYSlider:SetValue(AuraFixDB.debuffY or -50)
+    
+    -- Update text boxes
+    buffSizeBox:SetText(tostring(AuraFixDB.buffSize or 32))
+    debuffSizeBox:SetText(tostring(AuraFixDB.debuffSize or 32))
+    buffXBox:SetText(tostring(AuraFixDB.buffX or 0))
+    buffYBox:SetText(tostring(AuraFixDB.buffY or 0))
+    debuffXBox:SetText(tostring(AuraFixDB.debuffX or 0))
+    debuffYBox:SetText(tostring(AuraFixDB.debuffY or -50))
+    
     -- filterBox:SetText(AuraFixDB.filterText or "")
     UIDropDownMenu_SetSelectedValue(buffGrowDD, AuraFixDB.buffGrow or "RIGHT")
     UIDropDownMenu_SetSelectedValue(debuffGrowDD, AuraFixDB.debuffGrow or "RIGHT")
