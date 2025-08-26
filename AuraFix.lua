@@ -89,7 +89,11 @@ function AuraFix:UpdateAura(button, index)
 	button.expiration = expiration
 	button.modRate = modRate or 1
 	button.timeLeft = (expiration and duration and expiration - GetTime()) or 0
-	button:SetSize(32, 32)
+	
+	-- Set size based on filter type
+	local size = (button.filter == "HELPFUL") and AuraFixDB.buffSize or AuraFixDB.debuffSize
+	button:SetSize(size, size)
+	
 	button.icon:Show()
 	button.bg:Show()
 	-- button:Show() -- handled in UpdateAllAuras
@@ -131,7 +135,10 @@ function AuraFix:CreateAuraButton(parent, unit, filter, index)
     button.unit = unit
     button.filter = filter
     button.index = index
-    button:SetSize(32, 32)
+    
+    -- Set initial size based on filter type
+    local size = (filter == "HELPFUL") and AuraFixDB.buffSize or AuraFixDB.debuffSize
+    button:SetSize(size, size)
 
     -- Add a visible background to the button
     button.bg = button:CreateTexture(nil, "BACKGROUND")
@@ -209,9 +216,14 @@ function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras)
         self:UpdateAura(button, data.index)
         button:ClearAllPoints()
         button:SetParent(parent)
-        local offset = (shown * (button:GetWidth() + 4))
+        
+        -- Set button size based on filter type
+        local size = (filter == "HELPFUL") and AuraFixDB.buffSize or AuraFixDB.debuffSize
+        button:SetSize(size, size)
+        
+        local offset = (shown * (size + 4))
         if grow == "LEFT" then
-            button:SetPoint("LEFT", parent, "RIGHT", -offset - button:GetWidth(), 0)
+            button:SetPoint("RIGHT", parent, "RIGHT", -offset, 0)
         else
             button:SetPoint("LEFT", parent, "LEFT", offset, 0)
         end
@@ -265,17 +277,24 @@ function ApplyAuraFixSettings()
     local width, height = GetScreenSize()
     if AuraFix.Frame then
         AuraFix.Frame:SetSize(AuraFixDB.buffSize * 10, AuraFixDB.buffSize)
-        AuraFix.Frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", AuraFixDB.buffX + width/2, AuraFixDB.buffY + height/2)
+        local anchor = AuraFixDB.buffGrow == "LEFT" and "TOPRIGHT" or "TOPLEFT"
+        AuraFix.Frame:SetPoint(anchor, UIParent, "BOTTOMLEFT", AuraFixDB.buffX + width/2, AuraFixDB.buffY + height/2)
         for i, btn in ipairs(AuraFix.buttons or {}) do
             btn:SetSize(AuraFixDB.buffSize, AuraFixDB.buffSize)
         end
     end
     if AuraFix.DebuffFrame then
         AuraFix.DebuffFrame:SetSize(AuraFixDB.debuffSize * 10, AuraFixDB.debuffSize)
-        AuraFix.DebuffFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", AuraFixDB.debuffX + width/2, AuraFixDB.debuffY + height/2)
+        local anchor = AuraFixDB.debuffGrow == "LEFT" and "TOPRIGHT" or "TOPLEFT"
+        AuraFix.DebuffFrame:SetPoint(anchor, UIParent, "BOTTOMLEFT", AuraFixDB.debuffX + width/2, AuraFixDB.debuffY + height/2)
         for i, btn in ipairs(AuraFix.debuffButtons or {}) do
             btn:SetSize(AuraFixDB.debuffSize, AuraFixDB.debuffSize)
         end
+    end
+    -- Force update all auras to reposition with new growth direction
+    if AuraFix.UpdateAllAuras then
+        AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", 20)
+        AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", 20)
     end
 end
 
