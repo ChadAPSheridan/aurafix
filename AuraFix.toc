@@ -3,6 +3,7 @@
 ## Notes: Fixes Blizzard's aura update performance issue
 ## Author: ChadAPSheridan
 ## Version: 1.0.0
+## IconTexture: Interface\AddOns\AuraFix\AuraFix.png
 
 ## SavedVariables: AuraFixDB
 
