@@ -21,7 +21,9 @@ local defaults = {
     debuffY = -50,
     buffGrow = "RIGHT",
     debuffGrow = "RIGHT",
-    sortMethod = "INDEX"
+    sortMethod = "INDEX",
+    showBuffBackground = true,
+    showDebuffBackground = true
 }
 
 local function InitializeDB()
@@ -43,6 +45,13 @@ local function ApplyAuraFixSettings()
         for i, btn in ipairs(AuraFix.buttons or {}) do
             btn:SetSize(AuraFixDB.buffSize, AuraFixDB.buffSize)
         end
+        if AuraFixFrame.background then
+            if AuraFixDB.showBuffBackground then
+                AuraFixFrame.background:Show()
+            else
+                AuraFixFrame.background:Hide()
+            end
+        end
         if AuraFix.UpdateAllAuras then
             AuraFix:UpdateAllAuras(AuraFixFrame, "player", "HELPFUL", 20)
         end
@@ -52,6 +61,13 @@ local function ApplyAuraFixSettings()
         AuraFixDebuffFrame:SetPoint("TOPLEFT", AuraFixFrame, "BOTTOMLEFT", AuraFixDB.debuffX, AuraFixDB.debuffY)
         for i, btn in ipairs(AuraFix.debuffButtons or {}) do
             btn:SetSize(AuraFixDB.debuffSize, AuraFixDB.debuffSize)
+        end
+        if AuraFixDebuffFrame.background then
+            if AuraFixDB.showDebuffBackground then
+                AuraFixDebuffFrame.background:Show()
+            else
+                AuraFixDebuffFrame.background:Hide()
+            end
         end
         if AuraFix.UpdateAllAuras then
             AuraFix:UpdateAllAuras(AuraFixDebuffFrame, "player", "HARMFUL", 20)
@@ -186,6 +202,27 @@ local sortDD = CreateDropdown(panel, "Sort Auras By", {"INDEX", "TIME", "NAME"},
 sortDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
 lastAnchor = sortDD
 
+-- Create background toggle checkboxes
+local buffBackgroundCheck = CreateFrame("CheckButton", nil, panel, "InterfaceOptionsCheckButtonTemplate")
+buffBackgroundCheck:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -20)
+buffBackgroundCheck.Text:SetText("Show Buff Background")
+buffBackgroundCheck:SetChecked(AuraFixDB.showBuffBackground)
+buffBackgroundCheck:SetScript("OnClick", function(self)
+    AuraFixDB.showBuffBackground = self:GetChecked()
+    ApplyAuraFixSettings()
+end)
+lastAnchor = buffBackgroundCheck
+
+local debuffBackgroundCheck = CreateFrame("CheckButton", nil, panel, "InterfaceOptionsCheckButtonTemplate")
+debuffBackgroundCheck:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -10)
+debuffBackgroundCheck.Text:SetText("Show Debuff Background")
+debuffBackgroundCheck:SetChecked(AuraFixDB.showDebuffBackground)
+debuffBackgroundCheck:SetScript("OnClick", function(self)
+    AuraFixDB.showDebuffBackground = self:GetChecked()
+    ApplyAuraFixSettings()
+end)
+lastAnchor = debuffBackgroundCheck
+
 -- local filterBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
 -- filterBox:SetSize(120, 24)
 -- filterBox:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 16, -20)
@@ -212,6 +249,8 @@ panel:HookScript("OnShow", function()
     UIDropDownMenu_SetSelectedValue(buffGrowDD, AuraFixDB.buffGrow or "RIGHT")
     UIDropDownMenu_SetSelectedValue(debuffGrowDD, AuraFixDB.debuffGrow or "RIGHT")
     UIDropDownMenu_SetSelectedValue(sortDD, AuraFixDB.sortMethod or "INDEX")
+    buffBackgroundCheck:SetChecked(AuraFixDB.showBuffBackground)
+    debuffBackgroundCheck:SetChecked(AuraFixDB.showDebuffBackground)
 end)
 
 

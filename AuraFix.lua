@@ -236,10 +236,9 @@ end
 AuraFix.Frame = CreateFrame("Frame", "AuraFixFrame", UIParent)
 AuraFix.Frame:SetPoint("CENTER")
 AuraFix.Frame:SetSize(400, 40)
--- Add a visible background
-local bg1 = AuraFix.Frame:CreateTexture(nil, "BACKGROUND")
-bg1:SetAllPoints()
-bg1:SetColorTexture(0, 0.5, 1, 0.2) -- light blue, semi-transparent
+AuraFix.Frame.background = AuraFix.Frame:CreateTexture(nil, "BACKGROUND")
+AuraFix.Frame.background:SetAllPoints()
+AuraFix.Frame.background:SetColorTexture(0, 0.5, 1, 0.2) -- light blue, semi-transparent
 
 AuraFix.Frame:SetScript("OnEvent", function(self, event, ...)
     AuraFix:UpdateAllAuras(self, "player", "HELPFUL", 20)
@@ -251,10 +250,9 @@ AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", 20)
 AuraFix.DebuffFrame = CreateFrame("Frame", "AuraFixDebuffFrame", UIParent)
 AuraFix.DebuffFrame:SetPoint("TOPLEFT", AuraFix.Frame, "BOTTOMLEFT", 0, -10)
 AuraFix.DebuffFrame:SetSize(400, 40)
--- Add a visible background
-local bg2 = AuraFix.DebuffFrame:CreateTexture(nil, "BACKGROUND")
-bg2:SetAllPoints()
-bg2:SetColorTexture(1, 0.2, 0.2, 0.2) -- light red, semi-transparent
+AuraFix.DebuffFrame.background = AuraFix.DebuffFrame:CreateTexture(nil, "BACKGROUND")
+AuraFix.DebuffFrame.background:SetAllPoints()
+AuraFix.DebuffFrame.background:SetColorTexture(1, 0.2, 0.2, 0.2) -- light red, semi-transparent
 
 AuraFix.DebuffFrame:SetScript("OnEvent", function(self, event, ...)
     AuraFix:UpdateAllAuras(self, "player", "HARMFUL", 20)
