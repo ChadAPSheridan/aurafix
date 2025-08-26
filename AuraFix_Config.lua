@@ -31,9 +31,10 @@ end
 
 AuraFix.ApplySettings = ApplyAuraFixSettings
 
--- Edit Mode integration (Retail only)
+
 
 local panel = CreateFrame("Frame", "AuraFixConfigPanel", UIParent)
+print("[AuraFix] Config panel created:", tostring(panel), type(panel))
 panel.name = "AuraFix"
 
 
@@ -284,29 +285,58 @@ panel:HookScript("OnShow", function()
 end)
 
 -- Register the panel with Interface Options or new Settings API
+
+local panelCategory
 if Settings and Settings.RegisterAddOnCategory and Settings.RegisterCanvasLayoutCategory then
     -- Dragonflight+ API (WoW 10.x+)
-    local category = Settings.RegisterCanvasLayoutCategory(panel, "AuraFix")
-    Settings.RegisterAddOnCategory(category)
+    panelCategory = Settings.RegisterCanvasLayoutCategory(panel, "AuraFix")
+    print("[AuraFix] Registered panelCategory:", tostring(panelCategory), type(panelCategory))
+    Settings.RegisterAddOnCategory(panelCategory)
 else
-    panel:Show()
+    if InterfaceOptions_AddCategory then
+        print("[AuraFix] Registering panel with InterfaceOptions_AddCategory.")
+        InterfaceOptions_AddCategory(panel)
+    end
 end
 
 SLASH_AURAFIX1 = "/aurafix"
 SlashCmdList["AURAFIX"] = function()
+    print("[AuraFix] /aurafix command invoked.")
     if Settings and Settings.OpenToCategory then
-        -- Dragonflight+ API: open to our category
-        for _, cat in ipairs(Settings.GetAddOnCategories and Settings.GetAddOnCategories() or {}) do
-            if cat.name == "AuraFix" then
-                Settings.OpenToCategory(cat)
-                return
+    print("|cffffd200[AuraFix]|r If the AuraFix panel does not open directly, please click the 'AuraFix' entry in the settings sidebar. This is a Blizzard UI limitation in recent WoW versions.")
+        print("[AuraFix] Detected new Settings API.")
+        print("[AuraFix] panelCategory:", tostring(panelCategory), type(panelCategory))
+        if type(panelCategory) == "table" then
+            for k, v in pairs(panelCategory) do
+                print("[AuraFix] panelCategory["..tostring(k).."] = ", tostring(v))
             end
         end
-        Settings.OpenToCategory(panel.name or panel)
-    elseif InterfaceOptionsFrame_OpenToCategory then
+        print("[AuraFix] panel:", tostring(panel), type(panel))
+        if type(panel) == "table" then
+            for k, v in pairs(panel) do
+                print("[AuraFix] panel["..tostring(k).."] = ", tostring(v))
+            end
+        end
+        if panelCategory then
+            print("[AuraFix] Opening panelCategory:", tostring(panelCategory))
+            Settings.OpenToCategory(panelCategory)
+        else
+            print("[AuraFix] Opening panel directly:", tostring(panel))
+            Settings.OpenToCategory(panel)
+        end
+        -- Always force panel:Show() after OpenToCategory
+        C_Timer.After(0.5, function()
+            print("[AuraFix] Forcing panel:Show() after OpenToCategory.")
+            if panel then panel:Show() end
+        end)
+    elseif InterfaceOptionsFrame_OpenToCategory and panel then
+        print("[AuraFix] Detected old Interface Options API.")
+        print("[AuraFix] Opening panel:", tostring(panel))
         InterfaceOptionsFrame_OpenToCategory(panel)
         InterfaceOptionsFrame_OpenToCategory(panel) -- Blizzard bug workaround
+        if InterfaceOptionsFrame then InterfaceOptionsFrame:Show() end
     else
+        print("[AuraFix] Fallback: showing panel directly.")
         panel:Show()
     end
 end
