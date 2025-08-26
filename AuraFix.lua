@@ -11,6 +11,7 @@ local defaults = {
     debuffGrow = "RIGHT",
     sortMethod = "INDEX",
     filterText = "",
+    debugMode = false,  -- debug mode flag
 }
 AuraFixDB = AuraFixDB or {}
 for k, v in pairs(defaults) do
@@ -72,8 +73,15 @@ AuraFix.debuffButtons = {}
 -- Aura update logic (simplified, standalone)
 function AuraFix:UpdateAura(button, index)
 	local aura = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and C_UnitAuras.GetAuraDataByIndex(button.unit, index, button.filter)
-	if not aura then print("AuraFix: UpdateAura no aura for", button.unit, index, button.filter) return end
-	print("AuraFix: UpdateAura", aura.name, aura.icon)
+	if not aura then 
+		if AuraFixDB.debugMode then
+			print("AuraFix: UpdateAura no aura for", button.unit, index, button.filter)
+		end
+		return 
+	end
+	if AuraFixDB.debugMode then
+		print("AuraFix: UpdateAura", aura.name, aura.icon)
+	end
 
 	local name = aura.name
 	local icon = aura.icon
@@ -105,6 +113,10 @@ local function AuraFix_DebugLoaded()
 		print("|cff00ff00AuraFix loaded and active!|r")
 		AuraFix._debugPrinted = true
 	end
+	
+	if AuraFixDB.debugMode then
+		print("|cff00ff00AuraFix debug mode is enabled.|r")
+	end
 end
 
 local debugFrame = CreateFrame("Frame")
@@ -114,6 +126,17 @@ debugFrame:SetScript("OnEvent", function(self, event, addon)
 		AuraFix_DebugLoaded()
 	end
 end)
+
+-- Add debug toggle command
+SLASH_AURAFIXDEBUG1 = "/afdb"
+SlashCmdList["AURAFIXDEBUG"] = function(msg)
+    AuraFixDB.debugMode = not AuraFixDB.debugMode
+    if AuraFixDB.debugMode then
+        print("|cff00ff00AuraFix debug mode enabled.|r")
+    else
+        print("|cffff0000AuraFix debug mode disabled.|r")
+    end
+end
 
 function AuraFix:Button_OnUpdate(elapsed)
 	if self.expiration and self.duration and self.duration > 0 then
