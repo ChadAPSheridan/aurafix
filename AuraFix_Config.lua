@@ -4,7 +4,6 @@
 local ADDON, ns = ...
 local AuraFix = _G.AuraFix or {}
 
-
 local function ApplyAuraFixSettings()
     if AuraFixFrame then
         AuraFixFrame:SetSize(AuraFixDB.buffSize * 10, AuraFixDB.buffSize)
@@ -12,7 +11,6 @@ local function ApplyAuraFixSettings()
         for i, btn in ipairs(AuraFix.buttons or {}) do
             btn:SetSize(AuraFixDB.buffSize, AuraFixDB.buffSize)
         end
-        -- Force full update to apply growth direction
         if AuraFix.UpdateAllAuras then
             AuraFix:UpdateAllAuras(AuraFixFrame, "player", "HELPFUL", 20)
         end
@@ -31,14 +29,9 @@ end
 
 AuraFix.ApplySettings = ApplyAuraFixSettings
 
-
-
 local panel = CreateFrame("Frame", "AuraFixConfigPanel", UIParent)
-print("[AuraFix] Config panel created:", tostring(panel), type(panel))
 panel.name = "AuraFix"
 
-
--- Helper for dropdowns
 local function CreateDropdown(parent, label, items, value, onChange)
     local dd = CreateFrame("Frame", nil, parent, "UIDropDownMenuTemplate")
     dd.Label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -61,6 +54,7 @@ local function CreateDropdown(parent, label, items, value, onChange)
     return dd
 end
 
+-- Create all sliders
 local buffSizeSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
 buffSizeSlider:SetMinMaxValues(16, 64)
 buffSizeSlider:SetValueStep(1)
@@ -89,129 +83,6 @@ debuffSizeSlider:SetScript("OnValueChanged", function(self, value)
     ApplyAuraFixSettings()
 end)
 
-local function GetScreenSize()
-    local width = GetScreenWidth and GetScreenWidth() or 1920
-    local height = GetScreenHeight and GetScreenHeight() or 1080
-    return width, height
-end
-
-
--- Sliders first
-local buffSizeSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
-buffSizeSlider:SetMinMaxValues(16, 64)
-buffSizeSlider:SetValueStep(1)
-buffSizeSlider:SetPoint("TOPLEFT", 20, -40)
-buffSizeSlider:SetWidth(200)
-buffSizeSlider:SetValue(AuraFixDB.buffSize)
-buffSizeSlider.Text:SetText("Buff Size")
-buffSizeSlider.Low:SetText("16")
-buffSizeSlider.High:SetText("64")
-buffSizeSlider:SetScript("OnValueChanged", function(self, value)
-    AuraFixDB.buffSize = value
-    ApplyAuraFixSettings()
-end)
-
-local debuffSizeSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
-debuffSizeSlider:SetMinMaxValues(16, 64)
-debuffSizeSlider:SetValueStep(1)
-debuffSizeSlider:SetPoint("TOPLEFT", buffSizeSlider, "BOTTOMLEFT", 0, -40)
-debuffSizeSlider:SetWidth(200)
-debuffSizeSlider:SetValue(AuraFixDB.debuffSize)
-debuffSizeSlider.Text:SetText("Debuff Size")
-debuffSizeSlider.Low:SetText("16")
-debuffSizeSlider.High:SetText("64")
-debuffSizeSlider:SetScript("OnValueChanged", function(self, value)
-    AuraFixDB.debuffSize = value
-    ApplyAuraFixSettings()
-end)
-
-local buffXSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
-buffXSlider:SetMinMaxValues(-960, 960)
-buffXSlider:SetValueStep(1)
-buffXSlider:SetPoint("TOPLEFT", debuffSizeSlider, "BOTTOMLEFT", 0, -40)
-buffXSlider:SetWidth(200)
-buffXSlider:SetValue(AuraFixDB.buffX)
-buffXSlider.Text:SetText("Buff X Offset")
-buffXSlider.Low:SetText("-960")
-buffXSlider.High:SetText("960")
-buffXSlider:SetScript("OnValueChanged", function(self, value)
-    AuraFixDB.buffX = value
-    ApplyAuraFixSettings()
-end)
-
-buffYSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
-buffYSlider:SetMinMaxValues(-540, 540)
-buffYSlider:SetValueStep(1)
-buffYSlider:SetPoint("TOPLEFT", buffXSlider, "BOTTOMLEFT", 0, -40)
-buffYSlider:SetWidth(200)
-buffYSlider.Text:SetText("Buff Y Offset")
-buffYSlider.Low:SetText("-540")
-buffYSlider.High:SetText("540")
-local function OnBuffYChanged(self, value)
-    value = math.floor(value + 0.5)
-    if AuraFixDB.buffY ~= value then
-        AuraFixDB.buffY = value
-        ApplyAuraFixSettings()
-    end
-end
-buffYSlider:SetScript("OnValueChanged", OnBuffYChanged)
-
-local debuffXSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
-debuffXSlider:SetMinMaxValues(-960, 960)
-debuffXSlider:SetValueStep(1)
-debuffXSlider:SetPoint("TOPLEFT", buffYSlider, "BOTTOMLEFT", 0, -40)
-debuffXSlider:SetWidth(200)
-debuffXSlider:SetValue(AuraFixDB.debuffX)
-debuffXSlider.Text:SetText("Debuff X Offset")
-debuffXSlider.Low:SetText("-960")
-debuffXSlider.High:SetText("960")
-debuffXSlider:SetScript("OnValueChanged", function(self, value)
-    AuraFixDB.debuffX = value
-    ApplyAuraFixSettings()
-end)
-
-local debuffYSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
-debuffYSlider:SetMinMaxValues(-540, 540)
-debuffYSlider:SetValueStep(1)
-debuffYSlider:SetPoint("TOPLEFT", debuffXSlider, "BOTTOMLEFT", 0, -40)
-debuffYSlider:SetWidth(200)
-debuffYSlider:SetValue(AuraFixDB.debuffY)
-debuffYSlider.Text:SetText("Debuff Y Offset")
-debuffYSlider.Low:SetText("-540")
-debuffYSlider.High:SetText("540")
-debuffYSlider:SetScript("OnValueChanged", function(self, value)
-    AuraFixDB.debuffY = value
-    ApplyAuraFixSettings()
-end)
-
--- Now dropdowns and filter box, anchored after sliders
-local lastAnchor = debuffYSlider
-local buffGrowDD = CreateDropdown(panel, "Buff Bar Growth", {"LEFT", "RIGHT"}, function() return AuraFixDB.buffGrow end, function(v) AuraFixDB.buffGrow = v; ApplyAuraFixSettings() end)
-buffGrowDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
-lastAnchor = buffGrowDD
-
-local debuffGrowDD = CreateDropdown(panel, "Debuff Bar Growth", {"LEFT", "RIGHT"}, function() return AuraFixDB.debuffGrow end, function(v) AuraFixDB.debuffGrow = v; ApplyAuraFixSettings() end)
-debuffGrowDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
-lastAnchor = debuffGrowDD
-
-local sortDD = CreateDropdown(panel, "Sort Auras By", {"INDEX", "TIME", "NAME"}, function() return AuraFixDB.sortMethod end, function(v) AuraFixDB.sortMethod = v; ApplyAuraFixSettings() end)
-sortDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
-lastAnchor = sortDD
-
-local filterBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
-filterBox:SetSize(120, 24)
-filterBox:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 16, -20)
-filterBox:SetAutoFocus(false)
-filterBox:SetText(AuraFixDB.filterText or "")
-filterBox:SetScript("OnTextChanged", function(self)
-    AuraFixDB.filterText = self:GetText()
-    ApplyAuraFixSettings()
-end)
-local filterLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-filterLabel:SetPoint("BOTTOMLEFT", filterBox, "TOPLEFT", 0, 4)
-filterLabel:SetText("Filter (substring)")
-
--- Buff and debuff position sliders (created with dummy values, updated on panel show)
 local buffXSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
 buffXSlider:SetMinMaxValues(-960, 960)
 buffXSlider:SetValueStep(1)
@@ -254,6 +125,7 @@ debuffXSlider:SetScript("OnValueChanged", function(self, value)
     ApplyAuraFixSettings()
 end)
 
+local debuffYSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
 debuffYSlider:SetMinMaxValues(-540, 540)
 debuffYSlider:SetValueStep(1)
 debuffYSlider:SetPoint("TOPLEFT", debuffXSlider, "BOTTOMLEFT", 0, -40)
@@ -266,11 +138,38 @@ debuffYSlider:SetScript("OnValueChanged", function(self, value)
     AuraFixDB.debuffY = value
     ApplyAuraFixSettings()
 end)
-lastAnchor = debuffYSlider
 
--- Update slider bounds on panel show
+-- Create dropdowns and filter box
+local lastAnchor = debuffYSlider
+
+local buffGrowDD = CreateDropdown(panel, "Buff Bar Growth", {"LEFT", "RIGHT"}, function() return AuraFixDB.buffGrow end, function(v) AuraFixDB.buffGrow = v; ApplyAuraFixSettings() end)
+buffGrowDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
+lastAnchor = buffGrowDD
+
+local debuffGrowDD = CreateDropdown(panel, "Debuff Bar Growth", {"LEFT", "RIGHT"}, function() return AuraFixDB.debuffGrow end, function(v) AuraFixDB.debuffGrow = v; ApplyAuraFixSettings() end)
+debuffGrowDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
+lastAnchor = debuffGrowDD
+
+local sortDD = CreateDropdown(panel, "Sort Auras By", {"INDEX", "TIME", "NAME"}, function() return AuraFixDB.sortMethod end, function(v) AuraFixDB.sortMethod = v; ApplyAuraFixSettings() end)
+sortDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
+lastAnchor = sortDD
+
+local filterBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+filterBox:SetSize(120, 24)
+filterBox:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 16, -20)
+filterBox:SetAutoFocus(false)
+filterBox:SetText(AuraFixDB.filterText or "")
+filterBox:SetScript("OnTextChanged", function(self)
+    AuraFixDB.filterText = self:GetText()
+    ApplyAuraFixSettings()
+end)
+
+local filterLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+filterLabel:SetPoint("BOTTOMLEFT", filterBox, "TOPLEFT", 0, 4)
+filterLabel:SetText("Filter (substring)")
+
+-- Update panel on show
 panel:HookScript("OnShow", function()
-    -- Only update slider values, not min/max/labels
     buffSizeSlider:SetValue(AuraFixDB.buffSize or 32)
     debuffSizeSlider:SetValue(AuraFixDB.debuffSize or 32)
     buffXSlider:SetValue(AuraFixDB.buffX or 0)
@@ -278,65 +177,39 @@ panel:HookScript("OnShow", function()
     debuffXSlider:SetValue(AuraFixDB.debuffX or 0)
     debuffYSlider:SetValue(AuraFixDB.debuffY or -50)
     filterBox:SetText(AuraFixDB.filterText or "")
-    -- Dropdowns: force update selection
     UIDropDownMenu_SetSelectedValue(buffGrowDD, AuraFixDB.buffGrow or "RIGHT")
     UIDropDownMenu_SetSelectedValue(debuffGrowDD, AuraFixDB.debuffGrow or "RIGHT")
     UIDropDownMenu_SetSelectedValue(sortDD, AuraFixDB.sortMethod or "INDEX")
 end)
 
--- Register the panel with Interface Options or new Settings API
-
+-- Register panel
 local panelCategory
 if Settings and Settings.RegisterAddOnCategory and Settings.RegisterCanvasLayoutCategory then
-    -- Dragonflight+ API (WoW 10.x+)
     panelCategory = Settings.RegisterCanvasLayoutCategory(panel, "AuraFix")
-    print("[AuraFix] Registered panelCategory:", tostring(panelCategory), type(panelCategory))
     Settings.RegisterAddOnCategory(panelCategory)
 else
     if InterfaceOptions_AddCategory then
-        print("[AuraFix] Registering panel with InterfaceOptions_AddCategory.")
         InterfaceOptions_AddCategory(panel)
     end
 end
 
+-- Slash command
 SLASH_AURAFIX1 = "/aurafix"
 SlashCmdList["AURAFIX"] = function()
-    print("[AuraFix] /aurafix command invoked.")
     if Settings and Settings.OpenToCategory then
-    print("|cffffd200[AuraFix]|r If the AuraFix panel does not open directly, please click the 'AuraFix' entry in the settings sidebar. This is a Blizzard UI limitation in recent WoW versions.")
-        print("[AuraFix] Detected new Settings API.")
-        print("[AuraFix] panelCategory:", tostring(panelCategory), type(panelCategory))
-        if type(panelCategory) == "table" then
-            for k, v in pairs(panelCategory) do
-                print("[AuraFix] panelCategory["..tostring(k).."] = ", tostring(v))
-            end
-        end
-        print("[AuraFix] panel:", tostring(panel), type(panel))
-        if type(panel) == "table" then
-            for k, v in pairs(panel) do
-                print("[AuraFix] panel["..tostring(k).."] = ", tostring(v))
-            end
-        end
         if panelCategory then
-            print("[AuraFix] Opening panelCategory:", tostring(panelCategory))
             Settings.OpenToCategory(panelCategory)
         else
-            print("[AuraFix] Opening panel directly:", tostring(panel))
             Settings.OpenToCategory(panel)
         end
-        -- Always force panel:Show() after OpenToCategory
         C_Timer.After(0.5, function()
-            print("[AuraFix] Forcing panel:Show() after OpenToCategory.")
             if panel then panel:Show() end
         end)
     elseif InterfaceOptionsFrame_OpenToCategory and panel then
-        print("[AuraFix] Detected old Interface Options API.")
-        print("[AuraFix] Opening panel:", tostring(panel))
         InterfaceOptionsFrame_OpenToCategory(panel)
-        InterfaceOptionsFrame_OpenToCategory(panel) -- Blizzard bug workaround
+        InterfaceOptionsFrame_OpenToCategory(panel)
         if InterfaceOptionsFrame then InterfaceOptionsFrame:Show() end
     else
-        print("[AuraFix] Fallback: showing panel directly.")
         panel:Show()
     end
 end
