@@ -4,6 +4,38 @@
 local ADDON, ns = ...
 local AuraFix = _G.AuraFix or {}
 
+-- Add references to globals
+local InterfaceOptionsFrame = _G.InterfaceOptionsFrame
+local InterfaceOptionsFrame_OpenToCategory = _G.InterfaceOptionsFrame_OpenToCategory
+local InterfaceOptions_AddCategory = _G.InterfaceOptions_AddCategory
+local AuraFixFrame = _G.AuraFixFrame
+local AuraFixDebuffFrame = _G.AuraFixDebuffFrame
+
+-- Initialize default settings
+local defaults = {
+    buffSize = 32,
+    debuffSize = 32,
+    buffX = 0,
+    buffY = 0,
+    debuffX = 0,
+    debuffY = -50,
+    buffGrow = "RIGHT",
+    debuffGrow = "RIGHT",
+    sortMethod = "INDEX"
+}
+
+local function InitializeDB()
+    if not AuraFixDB then
+        AuraFixDB = {}
+    end
+    -- Apply defaults for any missing values
+    for k, v in pairs(defaults) do
+        if AuraFixDB[k] == nil then
+            AuraFixDB[k] = v
+        end
+    end
+end
+
 local function ApplyAuraFixSettings()
     if AuraFixFrame then
         AuraFixFrame:SetSize(AuraFixDB.buffSize * 10, AuraFixDB.buffSize)
@@ -154,19 +186,19 @@ local sortDD = CreateDropdown(panel, "Sort Auras By", {"INDEX", "TIME", "NAME"},
 sortDD:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -40)
 lastAnchor = sortDD
 
-local filterBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
-filterBox:SetSize(120, 24)
-filterBox:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 16, -20)
-filterBox:SetAutoFocus(false)
-filterBox:SetText(AuraFixDB.filterText or "")
-filterBox:SetScript("OnTextChanged", function(self)
-    AuraFixDB.filterText = self:GetText()
-    ApplyAuraFixSettings()
-end)
+-- local filterBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+-- filterBox:SetSize(120, 24)
+-- filterBox:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 16, -20)
+-- filterBox:SetAutoFocus(false)
+-- filterBox:SetText(AuraFixDB.filterText or "")
+-- filterBox:SetScript("OnTextChanged", function(self)
+--     AuraFixDB.filterText = self:GetText()
+--     ApplyAuraFixSettings()
+-- end)
 
-local filterLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-filterLabel:SetPoint("BOTTOMLEFT", filterBox, "TOPLEFT", 0, 4)
-filterLabel:SetText("Filter (substring)")
+-- local filterLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+-- filterLabel:SetPoint("BOTTOMLEFT", filterBox, "TOPLEFT", 0, 4)
+-- filterLabel:SetText("Filter (substring)")
 
 -- Update panel on show
 panel:HookScript("OnShow", function()
@@ -176,10 +208,23 @@ panel:HookScript("OnShow", function()
     buffYSlider:SetValue(AuraFixDB.buffY or 0)
     debuffXSlider:SetValue(AuraFixDB.debuffX or 0)
     debuffYSlider:SetValue(AuraFixDB.debuffY or -50)
-    filterBox:SetText(AuraFixDB.filterText or "")
+    -- filterBox:SetText(AuraFixDB.filterText or "")
     UIDropDownMenu_SetSelectedValue(buffGrowDD, AuraFixDB.buffGrow or "RIGHT")
     UIDropDownMenu_SetSelectedValue(debuffGrowDD, AuraFixDB.debuffGrow or "RIGHT")
     UIDropDownMenu_SetSelectedValue(sortDD, AuraFixDB.sortMethod or "INDEX")
+end)
+
+
+
+-- Create event frame and register ADDON_LOADED
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:SetScript("OnEvent", function(self, event, loadedAddon)
+    if loadedAddon == ADDON then
+        InitializeDB()
+        ApplyAuraFixSettings()
+        self:UnregisterEvent("ADDON_LOADED")
+    end
 end)
 
 -- Register panel
