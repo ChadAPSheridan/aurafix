@@ -1,0 +1,52 @@
+name: Create Release Archive and Upload to CurseForge
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Create Zip File
+        run: |
+          mkdir -p temp/AuraFix
+          cp -r ./!(.|..|.git*) temp/AuraFix/
+          cd temp
+          zip -r ../AuraFix.zip AuraFix
+          cd ..
+          rm -rf temp
+        
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: AuraFix
+          path: AuraFix.zip
+          
+      - name: Create metadata file
+        run: |
+          cat << EOF > metadata.json
+          {
+            "changelog": "$(git log -1 --pretty=%B)",
+            "changelogType": "markdown",
+            "displayName": "AuraFix",
+            "gameVersions": [112000, 112500],
+            "releaseType": "release"
+          }
+          EOF
+          
+      - name: Upload to CurseForge
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.API_KEY }}
+        run: |
+          curl -X POST \
+            -H "X-Api-Token: $CURSEFORGE_TOKEN" \
+            -F "metadata=@metadata.json" \
+            -F "file=@AuraFix.zip" \
+            https://www.curseforge.com/api/projects/1335521/upload-file
