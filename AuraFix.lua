@@ -144,7 +144,11 @@ function AuraFix:Button_OnUpdate(elapsed)
 		if self.timeLeft < 0.1 then
 			self:Hide()
 		else
-			self.durationText:SetText(string.format("%.0f", self.timeLeft))
+			if self.timeLeft > 60 then
+				self.durationText:SetText(string.format("%dm", math.floor(self.timeLeft/60), math.floor(self.timeLeft%60)))
+			else
+				self.durationText:SetText(string.format("%.0f", self.timeLeft))
+			end
 		end
 	else
 		-- Static buff: no duration, just clear the timer text
