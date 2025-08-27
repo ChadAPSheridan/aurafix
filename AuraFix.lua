@@ -161,7 +161,7 @@ function AuraFix:CreateAuraButton(parent, unit, filter, index)
     local button = CreateFrame("Button", nil, parent)
     button.unit = unit
     button.filter = filter
-    button.index = index
+    button.auraIndex = index  -- Changed to auraIndex to be more specific
     
     -- Set initial size based on filter type
     local size = (filter == "HELPFUL") and AuraFixDB.buffSize or AuraFixDB.debuffSize
@@ -185,12 +185,12 @@ function AuraFix:CreateAuraButton(parent, unit, filter, index)
 
     -- Tooltip and right-click cancel
     button:SetScript("OnEnter", function(self)
-        if self.unit and self.index then
+        if self.unit and self.auraIndex then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             if self.filter == "HELPFUL" then
-                GameTooltip:SetUnitBuff(self.unit, self.index)
+                GameTooltip:SetUnitBuff(self.unit, self.auraIndex)
             else
-                GameTooltip:SetUnitDebuff(self.unit, self.index)
+                GameTooltip:SetUnitDebuff(self.unit, self.auraIndex)
             end
             GameTooltip:Show()
         end
@@ -199,11 +199,11 @@ function AuraFix:CreateAuraButton(parent, unit, filter, index)
         GameTooltip:Hide()
     end)
     button:SetScript("OnMouseUp", function(self, buttonName)
-        if buttonName == "RightButton" and self.unit == "player" and self.index then
+        if buttonName == "RightButton" and self.unit == "player" and self.auraIndex then
             if self.filter == "HELPFUL" then
-                CancelUnitBuff(self.unit, self.index)
+                CancelUnitBuff(self.unit, self.auraIndex)
             elseif self.filter == "HARMFUL" then
-                CancelUnitDebuff(self.unit, self.index)
+                CancelUnitDebuff(self.unit, self.auraIndex)
             end
         end
     end)
@@ -240,6 +240,7 @@ function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras)
     for i, data in ipairs(auras) do
         local button = buttonTable[i] or self:CreateAuraButton(parent, unit, filter, data.index)
         buttonTable[i] = button
+        button.auraIndex = data.index  -- Ensure the button's aura index is always current
         self:UpdateAura(button, data.index)
         button:ClearAllPoints()
         button:SetParent(parent)
@@ -248,15 +249,27 @@ function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras)
         local size = (filter == "HELPFUL") and AuraFixDB.buffSize or AuraFixDB.debuffSize
         button:SetSize(size, size)
         
-        local offset = (shown * (size + 4))
+        -- Calculate row and column
+        local row = math.floor(shown / 12)
+        local col = shown % 12
+        
+        local xOffset = (col * (size + 4))
+        local yOffset = -(row * (size + 8))  -- Add some vertical spacing between rows
+        
         if grow == "LEFT" then
-            button:SetPoint("RIGHT", parent, "RIGHT", -offset, 0)
+            xOffset = -xOffset
+            button:SetPoint("RIGHT", parent, "RIGHT", xOffset, yOffset)
         else
-            button:SetPoint("LEFT", parent, "LEFT", offset, 0)
+            button:SetPoint("LEFT", parent, "LEFT", xOffset, yOffset)
         end
         button:Show()
         shown = shown + 1
     end
+    
+    -- Update parent frame height based on number of rows
+    local rows = math.ceil(shown / 12)
+    local size = (filter == "HELPFUL") and AuraFixDB.buffSize or AuraFixDB.debuffSize
+    parent:SetHeight(rows * (size + 8))
     -- Hide unused buttons
     for i = shown + 1, #buttonTable do
         if buttonTable[i] then buttonTable[i]:Hide() end
@@ -303,7 +316,8 @@ AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", 20)
 function ApplyAuraFixSettings()
     local width, height = GetScreenSize()
     if AuraFix.Frame then
-        AuraFix.Frame:SetSize(AuraFixDB.buffSize * 10, AuraFixDB.buffSize)
+        -- Set width for 12 buffs in a row, height will be adjusted dynamically
+        AuraFix.Frame:SetWidth(AuraFixDB.buffSize * 12 + (11 * 4))  -- Add spacing between icons
         local anchor = AuraFixDB.buffGrow == "LEFT" and "TOPRIGHT" or "TOPLEFT"
         AuraFix.Frame:SetPoint(anchor, UIParent, "BOTTOMLEFT", AuraFixDB.buffX + width/2, AuraFixDB.buffY + height/2)
         for i, btn in ipairs(AuraFix.buttons or {}) do
@@ -311,7 +325,8 @@ function ApplyAuraFixSettings()
         end
     end
     if AuraFix.DebuffFrame then
-        AuraFix.DebuffFrame:SetSize(AuraFixDB.debuffSize * 10, AuraFixDB.debuffSize)
+        -- Set width for 12 debuffs in a row, height will be adjusted dynamically
+        AuraFix.DebuffFrame:SetWidth(AuraFixDB.debuffSize * 12 + (11 * 4))  -- Add spacing between icons
         local anchor = AuraFixDB.debuffGrow == "LEFT" and "TOPRIGHT" or "TOPLEFT"
         AuraFix.DebuffFrame:SetPoint(anchor, UIParent, "BOTTOMLEFT", AuraFixDB.debuffX + width/2, AuraFixDB.debuffY + height/2)
         for i, btn in ipairs(AuraFix.debuffButtons or {}) do
