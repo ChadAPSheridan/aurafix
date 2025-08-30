@@ -117,17 +117,16 @@ function CreateAuraFixOptionsPanel()
     end
 
     -- Create main containers
-    local profileContainer = CreateContainer("Profiles", panel, 520, 80)
+    local profileContainer = CreateContainer("", panel, 520, 80)
     profileContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 40, -20)
 
-    local buffContainer = CreateContainer("Buff Settings", panel, 300, 220)
-    buffContainer:SetPoint("TOPLEFT", profileContainer, "BOTTOMLEFT", 0, -30)
-
-    local debuffContainer = CreateContainer("Debuff Settings", panel, 300, 220)
-    debuffContainer:SetPoint("TOPLEFT", buffContainer, "TOPRIGHT", 5, 0)
 
     local generalContainer = CreateContainer("General Settings", panel, 520, 80)
-    generalContainer:SetPoint("TOPLEFT", buffContainer, "BOTTOMLEFT", 0, -30)
+    generalContainer:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 0, -30)
+    
+    
+    local buffContainer = CreateContainer("", panel, 650, 500)
+        buffContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -45)
 
 
     -- Dummy aura update helper (must be defined before RefreshProfileDropdown)
@@ -234,7 +233,7 @@ function CreateAuraFixOptionsPanel()
     buffSizeLabel:SetPoint("TOPLEFT", buffContainer, "TOPLEFT", 20, -20)
 
     -- Debuff section label
-    local debuffHeaderLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    local debuffHeaderLabel = buffContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     debuffHeaderLabel:SetPoint("TOPLEFT", newProfileBtn, "BOTTOMLEFT", 0, -20)
     debuffHeaderLabel:SetText("Debuff Settings")
 
@@ -243,7 +242,7 @@ function CreateAuraFixOptionsPanel()
     local buffSizeSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     buffSizeSlider:SetMinMaxValues(16, 64)
     buffSizeSlider:SetValueStep(1)
-    buffSizeSlider:SetPoint("TOPLEFT", buffContainer, "TOPLEFT", 20, -20)
+    buffSizeSlider:SetPoint("TOPLEFT", buffContainer, "TOPLEFT", 20, -40)
     buffSizeSlider:SetWidth(200)
     buffSizeSlider:SetValue(AuraFixDB.buffSize)
     if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
@@ -251,7 +250,7 @@ function CreateAuraFixOptionsPanel()
     buffSizeSlider.Low:SetText("16")
     buffSizeSlider.High:SetText("64")
     -- Create value textbox for buff size
-    local buffSizeBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    local buffSizeBox = CreateFrame("EditBox", nil, buffContainer, "InputBoxTemplate")
     buffSizeBox:SetSize(50, 20)
     buffSizeBox:SetPoint("LEFT", buffSizeSlider, "RIGHT", 10, 0)
     buffSizeBox:SetAutoFocus(false)
@@ -278,17 +277,17 @@ function CreateAuraFixOptionsPanel()
         if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     end)
 
-    local debuffSizeSlider = CreateFrame("Slider", nil, debuffContainer, "OptionsSliderTemplate")
+    local debuffSizeSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     debuffSizeSlider:SetMinMaxValues(16, 64)
     debuffSizeSlider:SetValueStep(1)
-    debuffSizeSlider:SetPoint("TOPLEFT", debuffContainer, "TOPLEFT", 20, -20)
+    debuffSizeSlider:SetPoint("TOPRIGHT", buffContainer, "TOPRIGHT", -80, -40)
     debuffSizeSlider:SetWidth(200)
     debuffSizeSlider:SetValue(AuraFixDB.debuffSize)
     debuffSizeSlider.Text:SetText("Debuff Size")
     debuffSizeSlider.Low:SetText("16")
     debuffSizeSlider.High:SetText("64")
     -- Create value textbox for debuff size
-    local debuffSizeBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    local debuffSizeBox = CreateFrame("EditBox", nil, buffContainer, "InputBoxTemplate")
     debuffSizeBox:SetSize(50, 20)
     debuffSizeBox:SetPoint("LEFT", debuffSizeSlider, "RIGHT", 10, 0)
     debuffSizeBox:SetAutoFocus(false)
@@ -313,7 +312,7 @@ function CreateAuraFixOptionsPanel()
         ApplyAuraFixSettings()
         if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     end)
-    local buffXSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+    local buffXSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     local screenWidth = GetScreenWidth()
     buffXSlider:SetMinMaxValues(-math.floor(screenWidth / 2), math.floor(screenWidth / 2))
     buffXSlider:SetValueStep(1)
@@ -324,7 +323,7 @@ function CreateAuraFixOptionsPanel()
     buffXSlider.Low:SetText(-math.floor(screenWidth / 2))
     buffXSlider.High:SetText(math.floor(screenWidth / 2))
     -- Create value textbox for buff X offset
-    local buffXBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    local buffXBox = CreateFrame("EditBox", nil, buffContainer, "InputBoxTemplate")
     buffXBox:SetSize(50, 20)
     buffXBox:SetPoint("LEFT", buffXSlider, "RIGHT", 10, 0)
     buffXBox:SetAutoFocus(false)
@@ -351,7 +350,7 @@ function CreateAuraFixOptionsPanel()
         if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     end)
 
-    local buffYSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+    local buffYSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     local screenHeight = GetScreenHeight()
     buffYSlider:SetMinMaxValues(-math.floor(screenHeight / 2), math.floor(screenHeight / 2))
     buffYSlider:SetValueStep(1)
@@ -362,7 +361,7 @@ function CreateAuraFixOptionsPanel()
     buffYSlider.Low:SetText(-math.floor(screenHeight / 2))
     buffYSlider.High:SetText(math.floor(screenHeight / 2))
     -- Create value textbox for buff Y offset
-    local buffYBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    local buffYBox = CreateFrame("EditBox", nil, buffContainer, "InputBoxTemplate")
     buffYBox:SetSize(50, 20)
     buffYBox:SetPoint("LEFT", buffYSlider, "RIGHT", 10, 0)
     buffYBox:SetAutoFocus(false)
@@ -390,7 +389,7 @@ function CreateAuraFixOptionsPanel()
     end)
 
     -- Create buff columns slider
-    local buffColsSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+    local buffColsSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     buffColsSlider:SetMinMaxValues(1, 24)
     buffColsSlider:SetValueStep(1)
     buffColsSlider:SetPoint("TOPLEFT", buffYSlider, "BOTTOMLEFT", 0, -40)
@@ -401,7 +400,7 @@ function CreateAuraFixOptionsPanel()
     buffColsSlider.High:SetText("24")
 
     -- Create value textbox for buff columns
-    local buffColsBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    local buffColsBox = CreateFrame("EditBox", nil, buffContainer, "InputBoxTemplate")
     buffColsBox:SetSize(50, 20)
     buffColsBox:SetPoint("LEFT", buffColsSlider, "RIGHT", 10, 0)
     buffColsBox:SetAutoFocus(false)
@@ -426,7 +425,7 @@ function CreateAuraFixOptionsPanel()
     end)
 
     -- Create buff rows slider
-    local buffRowsSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+    local buffRowsSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     buffRowsSlider:SetMinMaxValues(1, 10)
     buffRowsSlider:SetValueStep(1)
     buffRowsSlider:SetPoint("TOPLEFT", buffColsSlider, "BOTTOMLEFT", 0, -40)
@@ -437,7 +436,7 @@ function CreateAuraFixOptionsPanel()
     buffRowsSlider.High:SetText("10")
 
     -- Create value textbox for buff rows
-    local buffRowsBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    local buffRowsBox = CreateFrame("EditBox", nil, buffContainer, "InputBoxTemplate")
     buffRowsBox:SetSize(50, 20)
     buffRowsBox:SetPoint("LEFT", buffRowsSlider, "RIGHT", 10, 0)
     buffRowsBox:SetAutoFocus(false)
@@ -462,10 +461,10 @@ function CreateAuraFixOptionsPanel()
     end)
 
     -- Create explanatory label between buff and debuff sections
-    -- local explanatoryLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    -- local explanatoryLabel = buffContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     -- explanatoryLabel:SetPoint("TOPLEFT", buffRowsSlider, "BOTTOMLEFT", 0, -20)
     -- explanatoryLabel:SetText("Debuff position is now independent from buff position")
-    local debuffXSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+    local debuffXSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     local screenWidth = GetScreenWidth()
     debuffXSlider:SetMinMaxValues(-screenWidth / 2, screenWidth / 2)
     debuffXSlider:SetValueStep(1)
@@ -476,7 +475,7 @@ function CreateAuraFixOptionsPanel()
     debuffXSlider.Low:SetText(-math.floor(screenWidth / 2))
     debuffXSlider.High:SetText(math.floor(screenWidth / 2))
     -- Create value textbox for debuff X offset
-    local debuffXBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    local debuffXBox = CreateFrame("EditBox", nil, buffContainer, "InputBoxTemplate")
     debuffXBox:SetSize(50, 20)
     debuffXBox:SetPoint("LEFT", debuffXSlider, "RIGHT", 10, 0)
     debuffXBox:SetAutoFocus(false)
@@ -503,7 +502,7 @@ function CreateAuraFixOptionsPanel()
         if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     end)
 
-    local debuffYSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+    local debuffYSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     local screenHeight = GetScreenHeight()
     debuffYSlider:SetMinMaxValues(-screenHeight / 2, screenHeight / 2)
     debuffYSlider:SetValueStep(1)
@@ -514,7 +513,7 @@ function CreateAuraFixOptionsPanel()
     debuffYSlider.Low:SetText(-math.floor(screenHeight / 2))
     debuffYSlider.High:SetText(math.floor(screenHeight / 2))
     -- Create value textbox for debuff Y offset
-    local debuffYBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    local debuffYBox = CreateFrame("EditBox", nil, buffContainer, "InputBoxTemplate")
     debuffYBox:SetSize(50, 20)
     debuffYBox:SetPoint("LEFT", debuffYSlider, "RIGHT", 10, 0)
     debuffYBox:SetAutoFocus(false)
@@ -542,7 +541,7 @@ function CreateAuraFixOptionsPanel()
     end)
 
     -- Create debuff columns slider
-    local debuffColsSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+    local debuffColsSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     debuffColsSlider:SetMinMaxValues(1, 24)
     debuffColsSlider:SetValueStep(1)
     debuffColsSlider:SetPoint("TOPLEFT", debuffYSlider, "BOTTOMLEFT", 0, -40)
@@ -553,7 +552,7 @@ function CreateAuraFixOptionsPanel()
     debuffColsSlider.High:SetText("24")
 
     -- Create value textbox for debuff columns
-    local debuffColsBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    local debuffColsBox = CreateFrame("EditBox", nil, buffContainer, "InputBoxTemplate")
     debuffColsBox:SetSize(50, 20)
     debuffColsBox:SetPoint("LEFT", debuffColsSlider, "RIGHT", 10, 0)
     debuffColsBox:SetAutoFocus(false)
@@ -578,7 +577,7 @@ function CreateAuraFixOptionsPanel()
     end)
 
     -- Create debuff rows slider
-    local debuffRowsSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+    local debuffRowsSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     debuffRowsSlider:SetMinMaxValues(1, 10)
     debuffRowsSlider:SetValueStep(1)
     debuffRowsSlider:SetPoint("TOPLEFT", debuffColsSlider, "BOTTOMLEFT", 0, -40)
@@ -589,7 +588,7 @@ function CreateAuraFixOptionsPanel()
     debuffRowsSlider.High:SetText("10")
 
     -- Create value textbox for debuff rows
-    local debuffRowsBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    local debuffRowsBox = CreateFrame("EditBox", nil, buffContainer, "InputBoxTemplate")
     debuffRowsBox:SetSize(50, 20)
     debuffRowsBox:SetPoint("LEFT", debuffRowsSlider, "RIGHT", 10, 0)
     debuffRowsBox:SetAutoFocus(false)
@@ -635,14 +634,14 @@ function CreateAuraFixOptionsPanel()
         function(v)
             local prof = getProfile(); prof.buffGrow = v; ApplyAuraFixSettings(); ForceAuraFixVisualUpdate()
         end)
-    buffGrowDD:SetPoint("TOPLEFT", buffSizeSlider, "BOTTOMLEFT", 0, -20)
+    buffGrowDD:SetPoint("TOPRIGHT", buffRowsBox, "BOTTOMRIGHT", 16, -20)
 
-    local debuffGrowDD = CreateDropdown(debuffContainer, "Debuff Bar Growth", { "LEFT", "RIGHT" },
+    local debuffGrowDD = CreateDropdown(buffContainer, "Debuff Bar Growth", { "LEFT", "RIGHT" },
         function() return getProfile().debuffGrow end,
         function(v)
             local prof = getProfile(); prof.debuffGrow = v; ApplyAuraFixSettings(); ForceAuraFixVisualUpdate()
         end)
-    debuffGrowDD:SetPoint("TOPLEFT", debuffSizeSlider, "BOTTOMLEFT", 0, -20)
+    debuffGrowDD:SetPoint("TOPRIGHT", debuffRowsBox, "BOTTOMRIGHT", 16, -20)
 
 
     -- Dummy aura generation helpers
@@ -932,6 +931,59 @@ function CreateAuraFixOptionsPanel()
     blacklistContainer:SetScript("OnLeave", function(self)
         GameTooltip:Hide()
     end)
+
+    -- Create a tabbed interface for the settings panel
+    local function CreateTabbedInterface(panel)
+        -- Create the tab container
+        local tabContainer = CreateFrame("Frame", nil, panel, "BackdropTemplate")
+        tabContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 10, -10)
+        tabContainer:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -10, 10)
+
+        -- Define tabs
+        local tabs = {
+            { name = "General", content = profileContainer, generalContainer },
+            { name = "Auras", content = buffContainer },
+            { name = "Filters", content = blacklistContainer },
+        }
+
+        -- Create tabs
+        local numTabs = #tabs
+        local tabFrames = {}
+        for i, tabInfo in ipairs(tabs) do
+            local tab = CreateFrame("Button", nil, tabContainer, "PanelTabButtonTemplate")
+            tab:SetID(i)
+            tab:SetText(tabInfo.name)
+            tab:SetSize(100, 24)
+            tab:SetPoint("TOPLEFT", tabContainer, "TOPLEFT", (i - 1) * 110, 0)
+            tabFrames[i] = tab
+
+            -- Tab click handler
+            tab:SetScript("OnClick", function()
+                PanelTemplates_SetTab(tabContainer, i)
+                for j, tabContent in ipairs(tabs) do
+                    if j == i then
+                        tabContent.content:Show()
+                    else
+                        tabContent.content:Hide()
+                    end
+                end
+            end)
+        end
+
+        -- Initialize tabs
+        PanelTemplates_SetNumTabs(tabContainer, numTabs)
+        PanelTemplates_SetTab(tabContainer, 1)
+        for i, tabInfo in ipairs(tabs) do
+            if i == 1 then
+                tabInfo.content:Show()
+            else
+                tabInfo.content:Hide()
+            end
+        end
+    end
+
+    -- Call the function to create the tabbed interface
+    CreateTabbedInterface(panel)
 
     return panel
 end
