@@ -157,8 +157,7 @@ function CreateAuraFixOptionsPanel()
     local function CreateDropdown(parent, label, items, value, onChange)
         local dd = CreateFrame("Frame", nil, parent, "UIDropDownMenuTemplate")
         dd.Label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        dd.Label:SetPoint("TOPLEFT", dd, "TOPLEFT", 16, 8)
-        if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
+        dd.Label:SetPoint("RIGHT", dd, "LEFT", -8, 0)
         dd.Label:SetText(label)
         UIDropDownMenu_SetWidth(dd, 120)
         UIDropDownMenu_Initialize(dd, function(self, level)
@@ -582,32 +581,33 @@ function CreateAuraFixOptionsPanel()
         end
     end
 
+    local sortDD = CreateDropdown(rightColumn, "Sort Auras By", { "INDEX", "TIME", "NAME" },
+        function() return getProfile().sortMethod end,
+        function(v)
+            local prof = getProfile(); prof.sortMethod = v; ApplyAuraFixSettings(); ForceAuraFixVisualUpdate()
+        end)
+    sortDD:SetPoint("TOPRIGHT", debuffRowsBox, "BOTTOMRIGHT", 0, -40)
+
+    -- Config Mode Checkbox
+    local configModeCheck = CreateFrame("CheckButton", nil, leftColumn, "InterfaceOptionsCheckButtonTemplate")
+    configModeCheck:SetPoint("TOPLEFT", buffRowsSlider, "BOTTOMLEFT", 0, -45)
+    configModeCheck.Text:SetText("Config Mode (Show Dummy Auras)")
+    configModeCheck:SetChecked(AuraFixDB and AuraFixDB.configMode)
+
     local buffGrowDD = CreateDropdown(leftColumn, "Buff Bar Growth", { "LEFT", "RIGHT" },
         function() return getProfile().buffGrow end,
         function(v)
             local prof = getProfile(); prof.buffGrow = v; ApplyAuraFixSettings(); ForceAuraFixVisualUpdate()
         end)
-    buffGrowDD:SetPoint("TOPLEFT", buffRowsSlider, "BOTTOMLEFT", 0, -20)
+    buffGrowDD:SetPoint("TOPLEFT", configModeCheck, "BOTTOMRIGHT", 70, -20)
 
     local debuffGrowDD = CreateDropdown(rightColumn, "Debuff Bar Growth", { "LEFT", "RIGHT" },
         function() return getProfile().debuffGrow end,
         function(v)
             local prof = getProfile(); prof.debuffGrow = v; ApplyAuraFixSettings(); ForceAuraFixVisualUpdate()
         end)
-    debuffGrowDD:SetPoint("TOPLEFT", debuffRowsSlider, "BOTTOMLEFT", 0, -20)
+    debuffGrowDD:SetPoint("TOPRIGHT", sortDD, "BOTTOMRIGHT", 0, -20)
 
-    local sortDD = CreateDropdown(rightColumn, "Sort Auras By", { "INDEX", "TIME", "NAME" },
-        function() return getProfile().sortMethod end,
-        function(v)
-            local prof = getProfile(); prof.sortMethod = v; ApplyAuraFixSettings(); ForceAuraFixVisualUpdate()
-        end)
-    sortDD:SetPoint("TOPLEFT", debuffGrowDD, "BOTTOMLEFT", 0, -40)
-
-    -- Config Mode Checkbox
-    local configModeCheck = CreateFrame("CheckButton", nil, leftColumn, "InterfaceOptionsCheckButtonTemplate")
-    configModeCheck:SetPoint("TOPLEFT", buffGrowDD, "BOTTOMLEFT", 0, -10)
-    configModeCheck.Text:SetText("Config Mode (Show Dummy Auras)")
-    configModeCheck:SetChecked(AuraFixDB and AuraFixDB.configMode)
 
     -- Dummy aura generation helpers
     local function GenerateDummyAuras()
@@ -687,12 +687,15 @@ function CreateAuraFixOptionsPanel()
     -- Update panel on show
     panel.OnShow = function()
         local prof = getProfile()
-        -- Add debug output and delay to ensure correct screen size
-        -- print("[AuraFix] Config panel OnShow: scheduling ApplyAuraFixSettings with delay. Current screen size:",
-            -- GetScreenWidth(), GetScreenHeight())
+        local buffGrowOptions = { ["LEFT"] = true, ["RIGHT"] = true }
+        local debuffGrowOptions = { ["LEFT"] = true, ["RIGHT"] = true }
+        local sortOptions = { ["INDEX"] = true, ["TIME"] = true, ["NAME"] = true }
+        -- Validate and fix profile values if needed
+        if not buffGrowOptions[prof.buffGrow] then prof.buffGrow = "RIGHT" end
+        if not debuffGrowOptions[prof.debuffGrow] then prof.debuffGrow = "RIGHT" end
+        if not sortOptions[prof.sortMethod] then prof.sortMethod = "INDEX" end
         C_Timer.After(0.1, function()
             if ApplyAuraFixSettings then ApplyAuraFixSettings() end
-            -- print("[AuraFix] Config panel OnShow: after delay, screen size:", GetScreenWidth(), GetScreenHeight())
             local prof = getProfile()
             buffSizeSlider:SetValue(prof.buffSize or 32)
             debuffSizeSlider:SetValue(prof.debuffSize or 32)
