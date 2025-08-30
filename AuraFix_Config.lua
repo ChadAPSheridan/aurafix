@@ -18,30 +18,27 @@ local defaults = {
 local function getDefaultProfile()
     local t = {}
     for k, v in pairs(defaults) do t[k] = v end
-    t.buffX = 0; t.buffY = 0; t.debuffX = 0; t.debuffY = 0
     return t
 end
 
-function InitializeDB()
-    _G.InitializeDB = InitializeDB
+local function InitializeDB()
     if not AuraFixDB then AuraFixDB = {} end
     if not AuraFixDB.profiles then
         AuraFixDB.profiles = { ["Default"] = getDefaultProfile() }
     end
     if not AuraFixCharDB then AuraFixCharDB = {} end
-    if not AuraFixCharDB.currentProfile then
+    if not AuraFixCharDB.currentProfile or not AuraFixDB.profiles[AuraFixCharDB.currentProfile] then
         AuraFixCharDB.currentProfile = "Default"
     end
-    -- Migrate old settings to Default profile if needed
     for k, v in pairs(defaults) do
         if AuraFixDB[k] ~= nil and (not AuraFixDB.profiles["Default"][k]) then
             AuraFixDB.profiles["Default"][k] = AuraFixDB[k]
             AuraFixDB[k] = nil
         end
     end
-    -- Set active profile reference
     AuraFix.profile = AuraFixDB.profiles[AuraFixCharDB.currentProfile]
 end
+_G.InitializeDB = InitializeDB
 
 local function getProfile()
     if not AuraFixDB or not AuraFixDB.profiles or not AuraFixCharDB or not AuraFixCharDB.currentProfile then
@@ -54,7 +51,42 @@ end
 -- Use ApplyAuraFixSettings from AuraFix.lua only
 AuraFix.ApplySettings = _G.ApplyAuraFixSettings
 
-local panel
+
+-- Define the new profile popup ONCE at the top level
+if not StaticPopupDialogs["AURAFIX_NEW_PROFILE"] then
+    StaticPopupDialogs["AURAFIX_NEW_PROFILE"] = {
+        text = "Enter new profile name:",
+        button1 = "Create",
+        button2 = "Cancel",
+        hasEditBox = true,
+        maxLetters = 32,
+        OnAccept = function(self)
+            local editBox = self.editBox or self.EditBox
+            print("Creating new profile:", editBox and editBox:GetText() or "")
+            local name = editBox and editBox:GetText():gsub("^%s+", ""):gsub("%s+$", "") or ""
+            if name == "" then return end
+            if AuraFixDB.profiles[name] then
+                print("Profile already exists.")
+                return
+            end
+            AuraFixDB.profiles[name] = getDefaultProfile()
+            AuraFixCharDB.currentProfile = name
+            AuraFix.profile = AuraFixDB.profiles[name]
+            if _G.ApplyAuraFixSettings then _G.ApplyAuraFixSettings() end
+            if _G.CreateAuraFixOptionsPanel then
+                local panel = _G.CreateAuraFixOptionsPanel()
+                if panel and panel.OnShow then panel:OnShow() end
+            end
+            if type(ForceAuraFixVisualUpdate) == "function" then ForceAuraFixVisualUpdate() end
+            if type(RefreshProfileDropdown) == "function" then RefreshProfileDropdown() end
+        end,
+        timeout = 0,
+        whileDead = true,
+        exclusive = true,
+        hideOnEscape = true,
+        preferredIndex = 3,
+    }
+end
 
 function CreateAuraFixOptionsPanel()
     if panel then return panel end
@@ -70,7 +102,7 @@ function CreateAuraFixOptionsPanel()
     rightColumn:SetSize(300, 600)
 
     -- Dummy aura update helper (must be defined before RefreshProfileDropdown)
-    function ForceAuraFixVisualUpdate()
+    local function ForceAuraFixVisualUpdate()
         if AuraFix and AuraFix.Frame and AuraFix.UpdateAllAuras then
             if AuraFixDB and AuraFixDB.configMode and AuraFix.DummyBuffs then
                 AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", 20, AuraFix.DummyBuffs)
@@ -125,30 +157,6 @@ function CreateAuraFixOptionsPanel()
     if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     newProfileBtn:SetText("New Profile")
     newProfileBtn:SetScript("OnClick", function()
-        StaticPopupDialogs["AURAFIX_NEW_PROFILE"] = {
-            text = "Enter new profile name:",
-            button1 = "Create",
-            button2 = "Cancel",
-            hasEditBox = true,
-            maxLetters = 32,
-            OnAccept = function(self)
-                local name = self.editBox:GetText():gsub("^%s+", ""):gsub("%s+$", "")
-                if name ~= "" and not AuraFixDB.profiles[name] then
-                    AuraFixDB.profiles[name] = getDefaultProfile()
-                    AuraFixCharDB.currentProfile = name
-                    AuraFix.profile = AuraFixDB.profiles[name]
-                    ApplyAuraFixSettings()
-                    RefreshProfileDropdown()
-                    if panel.OnShow then panel:OnShow() end
-                    ForceAuraFixVisualUpdate()
-                end
-            end,
-            timeout = 0,
-            whileDead = true,
-            exclusive = true,
-            hideOnEscape = true,
-            preferredIndex = 3,
-        }
         StaticPopup_Show("AURAFIX_NEW_PROFILE")
     end)
 
@@ -564,22 +572,7 @@ function CreateAuraFixOptionsPanel()
     end)
 
     -- Create dropdowns and filter box
-    function ForceAuraFixVisualUpdate()
-        if AuraFix and AuraFix.Frame and AuraFix.UpdateAllAuras then
-            if AuraFixDB and AuraFixDB.configMode and AuraFix.DummyBuffs then
-                AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", 20, AuraFix.DummyBuffs)
-            else
-                AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", 20)
-            end
-        end
-        if AuraFix and AuraFix.DebuffFrame and AuraFix.UpdateAllAuras then
-            if AuraFixDB and AuraFixDB.configMode and AuraFix.DummyDebuffs then
-                AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", 20, AuraFix.DummyDebuffs)
-            else
-                AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", 20)
-            end
-        end
-    end
+    -- (ForceAuraFixVisualUpdate already defined above, remove duplicate)
 
     local sortDD = CreateDropdown(rightColumn, "Sort Auras By", { "INDEX", "TIME", "NAME" },
         function() return getProfile().sortMethod end,
