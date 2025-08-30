@@ -94,13 +94,41 @@ function CreateAuraFixOptionsPanel()
     panel = CreateFrame("Frame", "AuraFixConfigPanel", UIParent)
     panel.name = "AuraFix"
 
-    local leftColumn = CreateFrame("Frame", nil, panel)
-    leftColumn:SetPoint("TOPLEFT", 20, -20)
-    leftColumn:SetSize(300, 560)  -- Reduced height to make room for filter box
+    -- Create containers for each section
+    local function CreateContainer(name, parent, width, height)
+        local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+        container:SetSize(width, height)
+        
+        -- Set up the backdrop
+        container:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 16,
+            insets = { left = 4, right = 4, top = 4, bottom = 4 }
+        })
+        container:SetBackdropColor(0, 0, 0, 0.3)
+        container:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.8)
+        
+        local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        label:SetPoint("BOTTOMLEFT", container, "TOPLEFT", 0, 5)
+        label:SetText(name)
+        
+        return container
+    end
 
-    local rightColumn = CreateFrame("Frame", nil, panel)
-    rightColumn:SetPoint("TOPLEFT", leftColumn, "TOPRIGHT", 40, 0)
-    rightColumn:SetSize(300, 560)  -- Reduced height to make room for filter box
+    -- Create main containers
+    local profileContainer = CreateContainer("Profiles", panel, 520, 80)
+    profileContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 40, -20)
+
+    local buffContainer = CreateContainer("Buff Settings", panel, 300, 220)
+    buffContainer:SetPoint("TOPLEFT", profileContainer, "BOTTOMLEFT", 0, -30)
+
+    local debuffContainer = CreateContainer("Debuff Settings", panel, 300, 220)
+    debuffContainer:SetPoint("TOPLEFT", buffContainer, "TOPRIGHT", 5, 0)
+
+    local generalContainer = CreateContainer("General Settings", panel, 520, 80)
+    generalContainer:SetPoint("TOPLEFT", buffContainer, "BOTTOMLEFT", 0, -30)
+
 
     -- Dummy aura update helper (must be defined before RefreshProfileDropdown)
     local function ForceAuraFixVisualUpdate()
@@ -121,12 +149,20 @@ function CreateAuraFixOptionsPanel()
     end
 
     -- Profile dropdown and new profile button
-    local profileLabel = leftColumn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    profileLabel:SetPoint("TOPLEFT", leftColumn, "TOPLEFT", 20, -4)
+    local profileLabel = profileContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    profileLabel:SetPoint("TOPLEFT", profileContainer, "TOPLEFT", 20, 20)
     profileLabel:SetText("Profile:")
 
-    local profileDD = CreateFrame("Frame", nil, leftColumn, "UIDropDownMenuTemplate")
+    local profileDD = CreateFrame("Frame", nil, profileContainer, "UIDropDownMenuTemplate")
     profileDD:SetPoint("LEFT", profileLabel, "RIGHT", 4, 0)
+
+    local newProfileBtn = CreateFrame("Button", nil, profileContainer, "UIPanelButtonTemplate")
+    newProfileBtn:SetSize(100, 22)
+    newProfileBtn:SetPoint("LEFT", profileDD, "RIGHT", 20, 0)
+    newProfileBtn:SetText("New Profile")
+    newProfileBtn:SetScript("OnClick", function()
+        StaticPopup_Show("AURAFIX_NEW_PROFILE")
+    end)
 
     local function RefreshProfileDropdown()
         if not AuraFixDB or not AuraFixDB.profiles then return end
@@ -193,10 +229,9 @@ function CreateAuraFixOptionsPanel()
     end
 
     -- Buff section label
-    local buffHeaderLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    buffHeaderLabel:SetPoint("TOPLEFT", profileLabel, "BOTTOMLEFT", 0, -20)
-    if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
-    buffHeaderLabel:SetText("Buff Settings")
+    -- Buff container elements start positioned from the top
+    local buffSizeLabel = buffContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    buffSizeLabel:SetPoint("TOPLEFT", buffContainer, "TOPLEFT", 20, -20)
 
     -- Debuff section label
     local debuffHeaderLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -205,10 +240,10 @@ function CreateAuraFixOptionsPanel()
 
     if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     -- Create all sliders
-    local buffSizeSlider = CreateFrame("Slider", nil, leftColumn, "OptionsSliderTemplate")
+    local buffSizeSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
     buffSizeSlider:SetMinMaxValues(16, 64)
     buffSizeSlider:SetValueStep(1)
-    buffSizeSlider:SetPoint("TOPLEFT", buffHeaderLabel, "BOTTOMLEFT", 0, -20)
+    buffSizeSlider:SetPoint("TOPLEFT", buffContainer, "TOPLEFT", 20, -20)
     buffSizeSlider:SetWidth(200)
     buffSizeSlider:SetValue(AuraFixDB.buffSize)
     if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
@@ -243,10 +278,10 @@ function CreateAuraFixOptionsPanel()
         if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     end)
 
-    local debuffSizeSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
+    local debuffSizeSlider = CreateFrame("Slider", nil, debuffContainer, "OptionsSliderTemplate")
     debuffSizeSlider:SetMinMaxValues(16, 64)
     debuffSizeSlider:SetValueStep(1)
-    debuffSizeSlider:SetPoint("TOPLEFT", debuffHeaderLabel, "BOTTOMLEFT", 0, -20)
+    debuffSizeSlider:SetPoint("TOPLEFT", debuffContainer, "TOPLEFT", 20, -20)
     debuffSizeSlider:SetWidth(200)
     debuffSizeSlider:SetValue(AuraFixDB.debuffSize)
     debuffSizeSlider.Text:SetText("Debuff Size")
@@ -581,32 +616,33 @@ function CreateAuraFixOptionsPanel()
     -- Create dropdowns and filter box
     -- (ForceAuraFixVisualUpdate already defined above, remove duplicate)
 
-    local sortDD = CreateDropdown(rightColumn, "Sort Auras By", { "INDEX", "TIME", "NAME" },
+    -- General settings container
+    local sortDD = CreateDropdown(generalContainer, "Sort Auras By", { "INDEX", "TIME", "NAME" },
         function() return getProfile().sortMethod end,
         function(v)
             local prof = getProfile(); prof.sortMethod = v; ApplyAuraFixSettings(); ForceAuraFixVisualUpdate()
         end)
-    sortDD:SetPoint("TOPRIGHT", debuffRowsBox, "BOTTOMRIGHT", 0, -40)
+    sortDD:SetPoint("TOPLEFT", generalContainer, "TOPLEFT", 20, -20)
 
     -- Config Mode Checkbox
-    local configModeCheck = CreateFrame("CheckButton", nil, leftColumn, "InterfaceOptionsCheckButtonTemplate")
-    configModeCheck:SetPoint("TOPLEFT", buffRowsSlider, "BOTTOMLEFT", 0, -45)
+    local configModeCheck = CreateFrame("CheckButton", nil, generalContainer, "InterfaceOptionsCheckButtonTemplate")
+    configModeCheck:SetPoint("LEFT", sortDD, "RIGHT", 50, 0)
     configModeCheck.Text:SetText("Config Mode (Show Dummy Auras)")
     configModeCheck:SetChecked(AuraFixDB and AuraFixDB.configMode)
 
-    local buffGrowDD = CreateDropdown(leftColumn, "Buff Bar Growth", { "LEFT", "RIGHT" },
+    local buffGrowDD = CreateDropdown(buffContainer, "Buff Bar Growth", { "LEFT", "RIGHT" },
         function() return getProfile().buffGrow end,
         function(v)
             local prof = getProfile(); prof.buffGrow = v; ApplyAuraFixSettings(); ForceAuraFixVisualUpdate()
         end)
-    buffGrowDD:SetPoint("TOPLEFT", configModeCheck, "BOTTOMRIGHT", 70, -20)
+    buffGrowDD:SetPoint("TOPLEFT", buffSizeSlider, "BOTTOMLEFT", 0, -20)
 
-    local debuffGrowDD = CreateDropdown(rightColumn, "Debuff Bar Growth", { "LEFT", "RIGHT" },
+    local debuffGrowDD = CreateDropdown(debuffContainer, "Debuff Bar Growth", { "LEFT", "RIGHT" },
         function() return getProfile().debuffGrow end,
         function(v)
             local prof = getProfile(); prof.debuffGrow = v; ApplyAuraFixSettings(); ForceAuraFixVisualUpdate()
         end)
-    debuffGrowDD:SetPoint("TOPRIGHT", sortDD, "BOTTOMRIGHT", 0, -20)
+    debuffGrowDD:SetPoint("TOPLEFT", debuffSizeSlider, "BOTTOMLEFT", 0, -20)
 
 
     -- Dummy aura generation helpers
