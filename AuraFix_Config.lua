@@ -168,19 +168,25 @@ function CreateAuraFixOptionsPanel()
         dd.Label:SetPoint("RIGHT", dd, "LEFT", -8, 0)
         dd.Label:SetText(label)
         UIDropDownMenu_SetWidth(dd, 120)
-        UIDropDownMenu_Initialize(dd, function(self, level)
-            for _, v in ipairs(items) do
+        -- Store initialization parameters for re-use
+        dd.items = items
+        dd.getValue = value
+        dd.onChange = onChange
+        -- Create initialization function and store it
+        dd.initFunc = function(self, level)
+            for _, v in ipairs(dd.items) do
                 local info = UIDropDownMenu_CreateInfo()
                 info.text = v
-                info.checked = (v == value())
+                info.checked = (v == dd.getValue())
                 info.func = function()
-                    onChange(v)
+                    dd.onChange(v)
                     UIDropDownMenu_SetSelectedValue(dd, v)
                     if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
                 end
                 UIDropDownMenu_AddButton(info)
             end
-        end)
+        end
+        UIDropDownMenu_Initialize(dd, dd.initFunc)
         UIDropDownMenu_SetSelectedValue(dd, value())
         return dd
     end
@@ -713,9 +719,19 @@ function CreateAuraFixOptionsPanel()
             debuffColsBox:SetText(tostring(prof.debuffColumns or 12))
             debuffRowsBox:SetText(tostring(prof.debuffRows or 1))
             -- filterBox:SetText(prof.filterText or "")
-            UIDropDownMenu_SetSelectedValue(buffGrowDD, prof.buffGrow or "RIGHT")
-            UIDropDownMenu_SetSelectedValue(debuffGrowDD, prof.debuffGrow or "RIGHT")
-            UIDropDownMenu_SetSelectedValue(sortDD, prof.sortMethod or "INDEX")
+            -- Re-initialize dropdowns to ensure correct values are loaded
+            if buffGrowDD and buffGrowDD.initFunc then 
+                UIDropDownMenu_Initialize(buffGrowDD, buffGrowDD.initFunc)
+                UIDropDownMenu_SetSelectedValue(buffGrowDD, prof.buffGrow or "RIGHT")
+            end
+            if debuffGrowDD and debuffGrowDD.initFunc then 
+                UIDropDownMenu_Initialize(debuffGrowDD, debuffGrowDD.initFunc)
+                UIDropDownMenu_SetSelectedValue(debuffGrowDD, prof.debuffGrow or "RIGHT")
+            end
+            if sortDD and sortDD.initFunc then 
+                UIDropDownMenu_Initialize(sortDD, sortDD.initFunc)
+                UIDropDownMenu_SetSelectedValue(sortDD, prof.sortMethod or "INDEX")
+            end
             -- background options removed
             configModeCheck:SetChecked(AuraFixDB and AuraFixDB.configMode)
             if AuraFixDB and AuraFixDB.configMode then
