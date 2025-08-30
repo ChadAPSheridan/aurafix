@@ -50,41 +50,9 @@ local function getProfile()
     return AuraFixDB.profiles[AuraFixCharDB.currentProfile] or getDefaultProfile()
 end
 
-local function ApplyAuraFixSettings()
-    local prof = getProfile()
-    local screenWidth, screenHeight = GetScreenWidth(), GetScreenHeight()
-    print("Applying AuraFix Settings for profile:", AuraFixCharDB.currentProfile)
-    print("Current Profile Settings:")
-    for k, v in pairs(prof) do
-        print(string.format("  %s: %s", k, tostring(v)))
-    end
-    print("Screen Width:", screenWidth)
-    print("Screen Height:", screenHeight)
 
-    if AuraFixFrame then
-        AuraFixFrame:ClearAllPoints() -- Clear existing anchors
-        local adjustedBuffX = (screenWidth / 2) + prof.buffX
-        local adjustedBuffY = (screenHeight / 2) + prof.buffY
-        AuraFixFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", adjustedBuffX, adjustedBuffY)
-        if AuraFixDB.debugMode then
-            print("AuraFixFrame adjusted position:", adjustedBuffX, adjustedBuffY)
-        end
-        AuraFixFrame:Show() -- Ensure frame is visible
-    end
-
-    if AuraFixDebuffFrame then
-        AuraFixDebuffFrame:ClearAllPoints() -- Clear existing anchors
-        local adjustedDebuffX = (screenWidth / 2) + prof.debuffX
-        local adjustedDebuffY = (screenHeight / 2) + prof.debuffY
-        AuraFixDebuffFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", adjustedDebuffX, adjustedDebuffY)
-        if AuraFixDB.debugMode then
-            print("AuraFixDebuffFrame adjusted position:", adjustedDebuffX, adjustedDebuffY)
-        end
-        AuraFixDebuffFrame:Show() -- Ensure frame is visible
-    end
-end
-
-AuraFix.ApplySettings = ApplyAuraFixSettings
+-- Use ApplyAuraFixSettings from AuraFix.lua only
+AuraFix.ApplySettings = _G.ApplyAuraFixSettings
 
 local panel
 
@@ -336,9 +304,7 @@ function CreateAuraFixOptionsPanel()
 
     local buffYSlider = CreateFrame("Slider", nil, panel, "OptionsSliderTemplate")
     local screenHeight = GetScreenHeight()
-    print("Screen Height:", screenHeight)
     buffYSlider:SetMinMaxValues(-math.floor(screenHeight / 2), math.floor(screenHeight / 2))
-    print("Buff Y Offset Slider Min/Max:", -math.floor(screenHeight / 2), math.floor(screenHeight / 2))
     buffYSlider:SetValueStep(1)
     buffYSlider:SetPoint("TOPLEFT", buffXSlider, "BOTTOMLEFT", 0, -40)
     buffYSlider:SetWidth(200)
@@ -713,11 +679,11 @@ function CreateAuraFixOptionsPanel()
     panel.OnShow = function()
         local prof = getProfile()
         -- Add debug output and delay to ensure correct screen size
-        print("[AuraFix] Config panel OnShow: scheduling ApplyAuraFixSettings with delay. Current screen size:",
-            GetScreenWidth(), GetScreenHeight())
+        -- print("[AuraFix] Config panel OnShow: scheduling ApplyAuraFixSettings with delay. Current screen size:",
+            -- GetScreenWidth(), GetScreenHeight())
         C_Timer.After(0.1, function()
             if ApplyAuraFixSettings then ApplyAuraFixSettings() end
-            print("[AuraFix] Config panel OnShow: after delay, screen size:", GetScreenWidth(), GetScreenHeight())
+            -- print("[AuraFix] Config panel OnShow: after delay, screen size:", GetScreenWidth(), GetScreenHeight())
             local prof = getProfile()
             buffSizeSlider:SetValue(prof.buffSize or 32)
             debuffSizeSlider:SetValue(prof.debuffSize or 32)
@@ -774,8 +740,7 @@ function CreateAuraFixOptionsPanel()
 end
 
 
--- Ensure ApplyAuraFixSettings is globally accessible
-_G.ApplyAuraFixSettings = ApplyAuraFixSettings
+
 
 
 -- Create event frame and register relevant events
@@ -812,7 +777,7 @@ end)
 local panelCategory
 function RegisterAuraFixPanel()
     if panelRegistered then return end
-    print("[AuraFix] RegisterAuraFixPanel called")
+    -- print("[AuraFix] RegisterAuraFixPanel called")
     CreateAuraFixOptionsPanel() -- Always call to ensure panel exists
     if Settings and Settings.RegisterAddOnCategory and Settings.RegisterCanvasLayoutCategory then
         panelCategory = Settings.RegisterCanvasLayoutCategory(panel, "AuraFix")

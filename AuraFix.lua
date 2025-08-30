@@ -400,24 +400,50 @@ AuraFix.DebuffFrame:SetPoint("CENTER", UIParent, "CENTER", 0, -50) -- Default po
 
 local function ApplyAuraFixSettings()
     local prof = GetCurrentProfile()
+    local screenWidth = GetScreenWidth()
+    local screenHeight = GetScreenHeight()
     -- Buff frame
     AuraFix.Frame:ClearAllPoints()
-    local buffAnchor, buffParentAnchor = "TOPLEFT", "TOPLEFT"
+    local buffWidth = (prof.buffColumns or 12) * ((prof.buffSize or 32) + 4)
+    local buffHeight = (prof.buffRows or 1) * ((prof.buffSize or 32) + 8)
+    local buffAnchor, parentAnchor
     if (prof.buffGrow or "RIGHT") == "LEFT" then
-        buffAnchor, buffParentAnchor = "TOPRIGHT", "TOPRIGHT"
+        buffAnchor = "TOPRIGHT"
+        parentAnchor = "TOPRIGHT"
+    else
+        buffAnchor = "TOPLEFT"
+        parentAnchor = "TOPLEFT"
     end
-    AuraFix.Frame:SetPoint(buffAnchor, UIParent, buffParentAnchor, prof.buffX or 0, prof.buffY or 0)
-    AuraFix.Frame:SetSize(prof.buffColumns * (prof.buffSize + 4), prof.buffRows * (prof.buffSize + 8))
-    print("prof.buffRows: " .. prof.buffRows .. " prof.buffColumns: " .. prof.buffColumns .. " prof.buffSize: " .. prof.buffSize)
-    print("AuraFix: Applied settings - Buffs at ("..(prof.buffX or 0)..","..(prof.buffY or 0).."), Size: "..(prof.buffSize or 32)..", Grow: "..(prof.buffGrow or "RIGHT")..", Columns: "..(prof.buffColumns or 12)..", Rows: "..(prof.buffRows or 1))
-    -- Debuff frame
+    -- Position relative to screen center plus offset, but keep the correct corner fixed
+    local baseX = (screenWidth / 2) + (prof.buffX or 0)
+    local baseY = (screenHeight / 2) + (prof.buffY or 0)
+    -- Convert center-based offset to top left/right anchor
+    if buffAnchor == "TOPLEFT" then
+        AuraFix.Frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", baseX, baseY)
+    else
+        AuraFix.Frame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", baseX, baseY)
+    end
+    AuraFix.Frame:SetSize(buffWidth, buffHeight)
+    -- Debuff frame (anchor logic matches buff frame)
     AuraFix.DebuffFrame:ClearAllPoints()
-    local debuffAnchor, debuffParentAnchor = "TOPLEFT", "TOPLEFT"
+    local debuffWidth = (prof.debuffColumns or 12) * ((prof.debuffSize or 32) + 4)
+    local debuffHeight = (prof.debuffRows or 1) * ((prof.debuffSize or 32) + 8)
+    local debuffAnchor, debuffParentAnchor
     if (prof.debuffGrow or "RIGHT") == "LEFT" then
-        debuffAnchor, debuffParentAnchor = "TOPRIGHT", "TOPRIGHT"
+        debuffAnchor = "TOPRIGHT"
+        debuffParentAnchor = "TOPRIGHT"
+    else
+        debuffAnchor = "TOPLEFT"
+        debuffParentAnchor = "TOPLEFT"
     end
-    AuraFix.DebuffFrame:SetPoint(debuffAnchor, UIParent, debuffParentAnchor, prof.debuffX or 0, prof.debuffY or -50)
-    AuraFix.DebuffFrame:SetSize(prof.debuffColumns * (prof.debuffSize + 4), prof.debuffRows * (prof.debuffSize + 8))
+    local debuffBaseX = (screenWidth / 2) + (prof.debuffX or 0)
+    local debuffBaseY = (screenHeight / 2) + (prof.debuffY or -50)
+    if debuffAnchor == "TOPLEFT" then
+        AuraFix.DebuffFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", debuffBaseX, debuffBaseY)
+    else
+        AuraFix.DebuffFrame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", debuffBaseX, debuffBaseY)
+    end
+    AuraFix.DebuffFrame:SetSize(debuffWidth, debuffHeight)
 end
 _G.ApplyAuraFixSettings = ApplyAuraFixSettings
 ApplyAuraFixSettings()
