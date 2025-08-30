@@ -98,7 +98,7 @@ function CreateAuraFixOptionsPanel()
     local function CreateContainer(name, parent, width, height)
         local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
         container:SetSize(width, height)
-        
+
         -- Set up the backdrop
         container:SetBackdrop({
             bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -108,25 +108,20 @@ function CreateAuraFixOptionsPanel()
         })
         container:SetBackdropColor(0, 0, 0, 0.3)
         container:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.8)
-        
+
         local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
         label:SetPoint("BOTTOMLEFT", container, "TOPLEFT", 0, 5)
         label:SetText(name)
-        
+
         return container
     end
 
     -- Create main containers
-    local profileContainer = CreateContainer("", panel, 520, 80)
-    profileContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 40, -20)
+    local generalContainer = CreateContainer("", panel, 650, 500)
+    generalContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -45)
 
-
-    local generalContainer = CreateContainer("General Settings", panel, 520, 80)
-    generalContainer:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 0, -30)
-    
-    
     local buffContainer = CreateContainer("", panel, 650, 500)
-        buffContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -45)
+    buffContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -45)
 
 
     -- Dummy aura update helper (must be defined before RefreshProfileDropdown)
@@ -148,16 +143,16 @@ function CreateAuraFixOptionsPanel()
     end
 
     -- Profile dropdown and new profile button
-    local profileLabel = profileContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    profileLabel:SetPoint("TOPLEFT", profileContainer, "TOPLEFT", 20, 20)
+    local profileLabel = generalContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    profileLabel:SetPoint("TOPLEFT", generalContainer, "TOPLEFT", 60, -40)
     profileLabel:SetText("Profile:")
 
-    local profileDD = CreateFrame("Frame", nil, profileContainer, "UIDropDownMenuTemplate")
+    local profileDD = CreateFrame("Frame", nil, generalContainer, "UIDropDownMenuTemplate")
     profileDD:SetPoint("LEFT", profileLabel, "RIGHT", 4, 0)
 
-    local newProfileBtn = CreateFrame("Button", nil, profileContainer, "UIPanelButtonTemplate")
+    local newProfileBtn = CreateFrame("Button", nil, generalContainer, "UIPanelButtonTemplate")
     newProfileBtn:SetSize(100, 22)
-    newProfileBtn:SetPoint("LEFT", profileDD, "RIGHT", 20, 0)
+    newProfileBtn:SetPoint("LEFT", profileDD, "RIGHT", 200, 0)
     newProfileBtn:SetText("New Profile")
     newProfileBtn:SetScript("OnClick", function()
         StaticPopup_Show("AURAFIX_NEW_PROFILE")
@@ -186,15 +181,6 @@ function CreateAuraFixOptionsPanel()
         end)
         UIDropDownMenu_SetSelectedValue(profileDD, AuraFixCharDB.currentProfile)
     end
-
-    local newProfileBtn = CreateFrame("Button", nil, rightColumn, "UIPanelButtonTemplate")
-    newProfileBtn:SetSize(100, 22)
-    newProfileBtn:SetPoint("TOPLEFT", 20, 7)
-    if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
-    newProfileBtn:SetText("New Profile")
-    newProfileBtn:SetScript("OnClick", function()
-        StaticPopup_Show("AURAFIX_NEW_PROFILE")
-    end)
 
     RefreshProfileDropdown()
 
@@ -227,16 +213,7 @@ function CreateAuraFixOptionsPanel()
         return dd
     end
 
-    -- Buff section label
-    -- Buff container elements start positioned from the top
-    local buffSizeLabel = buffContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    buffSizeLabel:SetPoint("TOPLEFT", buffContainer, "TOPLEFT", 20, -20)
-
-    -- Debuff section label
-    local debuffHeaderLabel = buffContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    debuffHeaderLabel:SetPoint("TOPLEFT", newProfileBtn, "BOTTOMLEFT", 0, -20)
-    debuffHeaderLabel:SetText("Debuff Settings")
-
+  
     if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     -- Create all sliders
     local buffSizeSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
@@ -616,12 +593,16 @@ function CreateAuraFixOptionsPanel()
     -- (ForceAuraFixVisualUpdate already defined above, remove duplicate)
 
     -- General settings container
-    local sortDD = CreateDropdown(generalContainer, "Sort Auras By", { "INDEX", "TIME", "NAME" },
+    local sortDDLabel = generalContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    sortDDLabel:SetPoint("BOTTOMRIGHT", profileLabel, "BOTTOMRIGHT", 0, -40)
+    sortDDLabel:SetText("Sort Auras By:")
+
+    local sortDD = CreateDropdown(generalContainer, nil, { "INDEX", "TIME", "NAME" },
         function() return getProfile().sortMethod end,
         function(v)
             local prof = getProfile(); prof.sortMethod = v; ApplyAuraFixSettings(); ForceAuraFixVisualUpdate()
         end)
-    sortDD:SetPoint("TOPLEFT", generalContainer, "TOPLEFT", 20, -20)
+    sortDD:SetPoint("LEFT", sortDDLabel, "RIGHT", 4, 0)
 
     -- Config Mode Checkbox
     local configModeCheck = CreateFrame("CheckButton", nil, generalContainer, "InterfaceOptionsCheckButtonTemplate")
@@ -705,7 +686,7 @@ function CreateAuraFixOptionsPanel()
         if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     end)
 
-       -- Update panel on show
+    -- Update panel on show
     panel.OnShow = function()
         local prof = getProfile()
         local buffGrowOptions = { ["LEFT"] = true, ["RIGHT"] = true }
@@ -742,19 +723,19 @@ function CreateAuraFixOptionsPanel()
             debuffRowsBox:SetText(tostring(prof.debuffRows or 1))
             filterBox:SetText(prof.filterText or "")
             -- Re-initialize dropdowns to ensure correct values are loaded
-            if buffGrowDD and buffGrowDD.initFunc then 
+            if buffGrowDD and buffGrowDD.initFunc then
                 UIDropDownMenu_Initialize(buffGrowDD, buffGrowDD.initFunc)
                 UIDropDownMenu_SetSelectedValue(buffGrowDD, prof.buffGrow or "RIGHT")
             end
-            if debuffGrowDD and debuffGrowDD.initFunc then 
+            if debuffGrowDD and debuffGrowDD.initFunc then
                 UIDropDownMenu_Initialize(debuffGrowDD, debuffGrowDD.initFunc)
                 UIDropDownMenu_SetSelectedValue(debuffGrowDD, prof.debuffGrow or "RIGHT")
             end
-            if sortDD and sortDD.initFunc then 
+            if sortDD and sortDD.initFunc then
                 UIDropDownMenu_Initialize(sortDD, sortDD.initFunc)
                 UIDropDownMenu_SetSelectedValue(sortDD, prof.sortMethod or "INDEX")
             end
-            
+
             -- Refresh blacklist display
             if RefreshBlacklist then RefreshBlacklist() end
             -- background options removed
@@ -786,7 +767,7 @@ function CreateAuraFixOptionsPanel()
     local blacklistContainer = CreateFrame("Frame", nil, panel, "BackdropTemplate")
     blacklistContainer:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 40, 0)
     blacklistContainer:SetSize(520, 120)
-    
+
     -- Set up the backdrop
     blacklistContainer:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -829,7 +810,7 @@ function CreateAuraFixOptionsPanel()
     -- Function to refresh the blacklist display
     local function RefreshBlacklist()
         -- Clear existing entries
-        for _, child in pairs({content:GetChildren()}) do
+        for _, child in pairs({ content:GetChildren() }) do
             child:Hide()
             child:SetParent(nil)
         end
@@ -846,9 +827,9 @@ function CreateAuraFixOptionsPanel()
             local text = entryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
             text:SetPoint("LEFT", 5, 0)
             if type(entry) == "number" then
-                text:SetText("Spell ID: "..entry)
+                text:SetText("Spell ID: " .. entry)
             else
-                text:SetText("Name: "..entry)
+                text:SetText("Name: " .. entry)
             end
 
             local removeBtn = CreateFrame("Button", nil, entryFrame, "UIPanelCloseButton")
@@ -907,7 +888,7 @@ function CreateAuraFixOptionsPanel()
             AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL")
         end
         RefreshBlacklist()
-        print("|cff00ff00[AuraFix]|r Added to blacklist: "..text)
+        print("|cff00ff00[AuraFix]|r Added to blacklist: " .. text)
     end)
 
     -- Enter key in edit box triggers add
@@ -923,7 +904,8 @@ function CreateAuraFixOptionsPanel()
     blacklistContainer:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
         GameTooltip:SetText("Aura Blacklist")
-        GameTooltip:AddLine("Add aura names (partial, case-insensitive) or spell IDs (exact) to prevent them from showing.", 1, 1, 1, true)
+        GameTooltip:AddLine(
+        "Add aura names (partial, case-insensitive) or spell IDs (exact) to prevent them from showing.", 1, 1, 1, true)
         GameTooltip:AddLine("- Names: partial, case-insensitive match", 1, 1, 1, true)
         GameTooltip:AddLine("- Spell IDs: exact match", 1, 1, 1, true)
         GameTooltip:Show()
@@ -941,8 +923,8 @@ function CreateAuraFixOptionsPanel()
 
         -- Define tabs
         local tabs = {
-            { name = "General", content = profileContainer, generalContainer },
-            { name = "Auras", content = buffContainer },
+            { name = "General", content = generalContainer },
+            { name = "Auras",   content = buffContainer },
             { name = "Filters", content = blacklistContainer },
         }
 
@@ -987,10 +969,6 @@ function CreateAuraFixOptionsPanel()
 
     return panel
 end
-
-
-
-
 
 -- Create event frame and register relevant events
 local eventFrame = CreateFrame("Frame")
