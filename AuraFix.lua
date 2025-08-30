@@ -318,11 +318,43 @@ function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras, dummyAuraTable)
             end
         end
     else
+        -- First handle regular auras
         for i = 1, maxAuras do
             local aura = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and
             C_UnitAuras.GetAuraDataByIndex(unit, i, filter)
             if aura and (filterText == "" or (aura.name and aura.name:lower():find(filterText, 1, true))) then
                 table.insert(auras, { aura = aura, index = i })
+            end
+        end
+        
+        -- If we're looking for buffs and this is the player, check weapon enchants
+        if filter == "HELPFUL" and unit == "player" then
+            local hasMainHandEnchant, mainHandExpiration, mainHandCharges, mainHandEnchantID, hasOffHandEnchant, offHandExpiration, offHandCharges, offHandEnchantId = GetWeaponEnchantInfo()
+            
+            if hasMainHandEnchant then
+                local mainHandAura = {
+                    name = "Weapon Enchant",
+                    icon = GetInventoryItemTexture("player", 16) or 134400, -- Main hand slot
+                    count = mainHandCharges or 0,
+                    duration = mainHandExpiration and mainHandExpiration/1000 or 0,
+                    expirationTime = mainHandExpiration and (GetTime() + mainHandExpiration/1000) or 0,
+                    isWeaponEnchant = true,
+                    slot = 16
+                }
+                table.insert(auras, { aura = mainHandAura, index = maxAuras + 1 })
+            end
+            
+            if hasOffHandEnchant then
+                local offHandAura = {
+                    name = "Off-Hand Enchant",
+                    icon = GetInventoryItemTexture("player", 17) or 134400, -- Off hand slot
+                    count = offHandCharges or 0,
+                    duration = offHandExpiration and offHandExpiration/1000 or 0,
+                    expirationTime = offHandExpiration and (GetTime() + offHandExpiration/1000) or 0,
+                    isWeaponEnchant = true,
+                    slot = 17
+                }
+                table.insert(auras, { aura = offHandAura, index = maxAuras + 2 })
             end
         end
     end
