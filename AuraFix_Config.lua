@@ -612,15 +612,21 @@ function CreateAuraFixOptionsPanel()
     -- Dummy aura generation helpers
     local function GenerateDummyAuras()
         if not AuraFix then return end
+        local now = GetTime()
+        -- Helper for random duration between 1 and 10 minutes
+        local function randomDuration()
+            return math.random(60, 600) -- seconds
+        end
         -- Dummy Buffs
         AuraFix.DummyBuffs = {}
         for i = 1, 32 do
+            local dur = randomDuration()
             AuraFix.DummyBuffs[i] = {
                 name = "Dummy Buff " .. i,
-                icon = "Interface\\AddOns\\AuraFix\\AuraFix.png", -- Custom AuraFix icon
+                icon = "Interface\\AddOns\\AuraFix\\AuraFix.png",
                 count = i % 5,
-                duration = 120,
-                expirationTime = GetTime() + 120 - i * 2,
+                duration = dur,
+                expirationTime = now + math.random(0, dur), -- random time left
                 debuffType = nil,
                 isStealable = false,
                 shouldConsolidate = false,
@@ -630,12 +636,13 @@ function CreateAuraFixOptionsPanel()
         -- Dummy Debuffs
         AuraFix.DummyDebuffs = {}
         for i = 1, 32 do
+            local dur = randomDuration()
             AuraFix.DummyDebuffs[i] = {
                 name = "Dummy Debuff " .. i,
-                icon = "Interface\\AddOns\\AuraFix\\AuraFix.png", -- Use addon icon for debuffs too
+                icon = "Interface\\AddOns\\AuraFix\\AuraFix.png",
                 count = i % 3,
-                duration = 60,
-                expirationTime = GetTime() + 60 - i * 2,
+                duration = dur,
+                expirationTime = now + math.random(0, dur),
                 debuffType = (i % 2 == 0) and "Magic" or "Poison",
                 isStealable = false,
                 shouldConsolidate = false,
@@ -648,12 +655,14 @@ function CreateAuraFixOptionsPanel()
         if not AuraFix then return end
         AuraFix.DummyBuffs = nil
         AuraFix.DummyDebuffs = nil
+        AuraFix.ConfigDummyStartTime = nil
     end
 
     configModeCheck:SetScript("OnClick", function(self)
         if not AuraFixDB then return end
         AuraFixDB.configMode = self:GetChecked()
         if self:GetChecked() then
+            AuraFix.ConfigDummyStartTime = GetTime()
             GenerateDummyAuras()
         else
             ClearDummyAuras()

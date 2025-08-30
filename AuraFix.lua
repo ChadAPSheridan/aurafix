@@ -109,40 +109,36 @@ AuraFix.debuffButtons = {}
 
 -- Aura update logic (simplified, standalone)
 function AuraFix:UpdateAura(button, index)
-    local aura = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and
-    C_UnitAuras.GetAuraDataByIndex(button.unit, index, button.filter)
+    local aura = button.aura or (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and C_UnitAuras.GetAuraDataByIndex(button.unit, index, button.filter))
     if not aura then
-        if AuraFixDB.debugMode then
+        if AuraFixDB and AuraFixDB.debugMode then
             print("AuraFix: UpdateAura no aura for", button.unit, index, button.filter)
         end
         return
     end
-    if AuraFixDB.debugMode then
+    if AuraFixDB and AuraFixDB.debugMode then
         print("AuraFix: UpdateAura", aura.name, aura.icon)
     end
 
     local name = aura.name
     local icon = aura.icon
-    local count = aura.applications or aura.count or 0          -- Ensure count is properly accessed
-    local debuffType = aura.dispelName or aura.debuffType or "" -- Handle missing debuffType gracefully
+    local count = (aura and (aura.applications or aura.count)) or 0
+    local debuffType = (aura and (aura.dispelName or aura.debuffType)) or ""
     local duration = aura.duration
     local expiration = aura.expirationTime
     local modRate = aura.timeMod
 
-    button.icon:SetTexture(icon or 134400) -- fallback to question mark icon if missing
+    button.icon:SetTexture(icon or 134400)
     button.count:SetText(count > 1 and count or "")
     button.duration = duration
     button.expiration = expiration
     button.modRate = modRate or 1
     button.timeLeft = (expiration and duration and expiration - GetTime()) or 0
 
-    -- Set size and background based on filter type and current profile
     local prof = GetCurrentProfile()
     local isBuff = (button.filter == "HELPFUL")
     local size = isBuff and (prof.buffSize or 32) or (prof.debuffSize or 32)
     button:SetSize(size, size)
-    -- background functionality removed
-
     button.icon:Show()
 end
 
@@ -262,7 +258,7 @@ function AuraFix:CreateAuraButton(parent, unit, filter, index)
     button.count:SetPoint("BOTTOMRIGHT", -2, 2)
 
     button.durationText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    button.durationText:SetPoint("TOP", button, "BOTTOM", 0, -2)
+    button.durationText:SetPoint("TOP", button, "BOTTOM", 0, 0)
 
     button:SetScript("OnUpdate", AuraFix.Button_OnUpdate)
 
@@ -336,27 +332,20 @@ function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras, dummyAuraTable)
     local shown = 0
     for i, data in ipairs(auras) do
         if math.floor(shown / numColumns) >= numRows then
-            -- Stop if we've exceeded the maximum number of rows
             break
         end
-
         local button = buttonTable[i] or self:CreateAuraButton(parent, unit, filter, data.index)
         buttonTable[i] = button
-        button.auraIndex = data.index -- Ensure the button's aura index is always current
+        button.auraIndex = data.index
+        button.aura = data.aura -- Set the full aura table for dummy auras
         button:ClearAllPoints()
         button:SetParent(parent)
-
-        -- Always call UpdateAura to allow for live size/background updates
         self:UpdateAura(button, data.index)
         button:SetSize(size, size)
-
-        -- Calculate position
         local row = math.floor(shown / numColumns)
         local col = shown % numColumns
-
         local xOffset = (col * (size + 4))
-        local yOffset = -((row * (size + 8)) + 4) -- Add some vertical spacing between rows
-
+        local yOffset = -((row * (size + 10)) + 4)
         if grow == "LEFT" then
             xOffset = -xOffset
             button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", xOffset, yOffset)
