@@ -12,7 +12,8 @@ local defaults = {
     buffColumns = 12,
     buffRows = 1,
     debuffColumns = 12,
-    debuffRows = 1
+    debuffRows = 1,
+    auraBlacklist = {}
 }
 
 local function getDefaultProfile()
@@ -95,11 +96,11 @@ function CreateAuraFixOptionsPanel()
 
     local leftColumn = CreateFrame("Frame", nil, panel)
     leftColumn:SetPoint("TOPLEFT", 20, -20)
-    leftColumn:SetSize(300, 600)
+    leftColumn:SetSize(300, 560)  -- Reduced height to make room for filter box
 
     local rightColumn = CreateFrame("Frame", nil, panel)
     rightColumn:SetPoint("TOPLEFT", leftColumn, "TOPRIGHT", 40, 0)
-    rightColumn:SetSize(300, 600)
+    rightColumn:SetSize(300, 560)  -- Reduced height to make room for filter box
 
     -- Dummy aura update helper (must be defined before RefreshProfileDropdown)
     local function ForceAuraFixVisualUpdate()
@@ -669,21 +670,7 @@ function CreateAuraFixOptionsPanel()
         if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     end)
 
-    -- local filterBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
-    -- filterBox:SetSize(120, 24)
-    -- filterBox:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 16, -20)
-    -- filterBox:SetAutoFocus(false)
-    -- filterBox:SetText(AuraFixDB.filterText or "")
-    -- filterBox:SetScript("OnTextChanged", function(self)
-    --     AuraFixDB.filterText = self:GetText()
-    --     ApplyAuraFixSettings()
-    -- end)
-
-    -- local filterLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    -- filterLabel:SetPoint("BOTTOMLEFT", filterBox, "TOPLEFT", 0, 4)
-    -- filterLabel:SetText("Filter (substring)")
-
-    -- Update panel on show
+       -- Update panel on show
     panel.OnShow = function()
         local prof = getProfile()
         local buffGrowOptions = { ["LEFT"] = true, ["RIGHT"] = true }
@@ -718,7 +705,7 @@ function CreateAuraFixOptionsPanel()
             buffRowsBox:SetText(tostring(prof.buffRows or 1))
             debuffColsBox:SetText(tostring(prof.debuffColumns or 12))
             debuffRowsBox:SetText(tostring(prof.debuffRows or 1))
-            -- filterBox:SetText(prof.filterText or "")
+            filterBox:SetText(prof.filterText or "")
             -- Re-initialize dropdowns to ensure correct values are loaded
             if buffGrowDD and buffGrowDD.initFunc then 
                 UIDropDownMenu_Initialize(buffGrowDD, buffGrowDD.initFunc)
@@ -732,6 +719,9 @@ function CreateAuraFixOptionsPanel()
                 UIDropDownMenu_Initialize(sortDD, sortDD.initFunc)
                 UIDropDownMenu_SetSelectedValue(sortDD, prof.sortMethod or "INDEX")
             end
+            
+            -- Refresh blacklist display
+            if RefreshBlacklist then RefreshBlacklist() end
             -- background options removed
             configModeCheck:SetChecked(AuraFixDB and AuraFixDB.configMode)
             if AuraFixDB and AuraFixDB.configMode then
@@ -755,6 +745,156 @@ function CreateAuraFixOptionsPanel()
                 if type(ForceAuraFixVisualUpdate) == "function" then ForceAuraFixVisualUpdate() end
             end
         end)
+    end)
+
+    -- Create the blacklist section
+    local blacklistContainer = CreateFrame("Frame", nil, panel, "BackdropTemplate")
+    blacklistContainer:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 40, 0)
+    blacklistContainer:SetSize(520, 120)
+    
+    -- Set up the backdrop
+    blacklistContainer:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    blacklistContainer:SetBackdropColor(0, 0, 0, 0.3)
+    blacklistContainer:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.8)
+
+    local blacklistLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    blacklistLabel:SetPoint("BOTTOMLEFT", blacklistContainer, "TOPLEFT", 0, 5)
+    blacklistLabel:SetText("Aura Blacklist")
+
+    local blacklistHelp = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    blacklistHelp:SetPoint("LEFT", blacklistLabel, "RIGHT", 5, 0)
+    blacklistHelp:SetText("(Enter aura name or spell ID)")
+
+    -- Create scrollable list of current blacklist entries
+    local scrollFrame = CreateFrame("ScrollFrame", nil, blacklistContainer, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", 0, 0)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -30, 25)
+
+    local content = CreateFrame("Frame", nil, scrollFrame)
+    content:SetSize(490, 10) -- Height will be adjusted dynamically
+    scrollFrame:SetScrollChild(content)
+
+    -- Create new entry box
+    local newEntryBox = CreateFrame("EditBox", nil, blacklistContainer, "InputBoxTemplate")
+    newEntryBox:SetSize(200, 20)
+    newEntryBox:SetPoint("BOTTOMLEFT", blacklistContainer, "BOTTOMLEFT", 0, 0)
+    newEntryBox:SetAutoFocus(false)
+    newEntryBox:SetText("")
+
+    local addButton = CreateFrame("Button", nil, blacklistContainer, "UIPanelButtonTemplate")
+    addButton:SetSize(60, 22)
+    addButton:SetPoint("LEFT", newEntryBox, "RIGHT", 5, 0)
+    addButton:SetText("Add")
+
+    -- Function to refresh the blacklist display
+    local function RefreshBlacklist()
+        -- Clear existing entries
+        for _, child in pairs({content:GetChildren()}) do
+            child:Hide()
+            child:SetParent(nil)
+        end
+
+        local prof = getProfile()
+        if not prof.auraBlacklist then prof.auraBlacklist = {} end
+
+        local height = 0
+        for i, entry in ipairs(prof.auraBlacklist) do
+            local entryFrame = CreateFrame("Frame", nil, content)
+            entryFrame:SetSize(470, 20)
+            entryFrame:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -height)
+
+            local text = entryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            text:SetPoint("LEFT", 5, 0)
+            if type(entry) == "number" then
+                text:SetText("Spell ID: "..entry)
+            else
+                text:SetText("Name: "..entry)
+            end
+
+            local removeBtn = CreateFrame("Button", nil, entryFrame, "UIPanelCloseButton")
+            removeBtn:SetSize(20, 20)
+            removeBtn:SetPoint("RIGHT", 0, 0)
+            removeBtn:SetScript("OnClick", function()
+                table.remove(prof.auraBlacklist, i)
+                if AuraFix and AuraFix.UpdateAllAuras then
+                    AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL")
+                    AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL")
+                end
+                RefreshBlacklist()
+                print("|cff00ff00[AuraFix]|r Removed from blacklist.")
+            end)
+
+            height = height + 22
+        end
+
+        content:SetHeight(math.max(height, 10))
+    end
+
+    -- Add button click handler
+    -- Helper: check for duplicate in blacklist
+    local function isDuplicateEntry(tbl, entry)
+        for _, v in ipairs(tbl) do
+            if type(v) == type(entry) and v == entry then
+                return true
+            end
+        end
+        return false
+    end
+
+    addButton:SetScript("OnClick", function()
+        local text = (newEntryBox:GetText() or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if text == "" then
+            print("|cffff0000[AuraFix]|r Please enter an aura name or spell ID.")
+            return
+        end
+        local prof = getProfile()
+        if not prof.auraBlacklist then prof.auraBlacklist = {} end
+        local entry
+        local spellId = tonumber(text)
+        if spellId then
+            entry = spellId
+        else
+            entry = text:lower()
+        end
+        if isDuplicateEntry(prof.auraBlacklist, entry) then
+            print("|cffff0000[AuraFix]|r That entry is already in the blacklist.")
+            return
+        end
+        table.insert(prof.auraBlacklist, entry)
+        newEntryBox:SetText("")
+        if AuraFix and AuraFix.UpdateAllAuras then
+            AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL")
+            AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL")
+        end
+        RefreshBlacklist()
+        print("|cff00ff00[AuraFix]|r Added to blacklist: "..text)
+    end)
+
+    -- Enter key in edit box triggers add
+    newEntryBox:SetScript("OnEnterPressed", function()
+        addButton:Click()
+        newEntryBox:ClearFocus()
+    end)
+
+    -- Initialize the blacklist display
+    RefreshBlacklist()
+
+    -- Add tooltips
+    blacklistContainer:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
+        GameTooltip:SetText("Aura Blacklist")
+        GameTooltip:AddLine("Add aura names (partial, case-insensitive) or spell IDs (exact) to prevent them from showing.", 1, 1, 1, true)
+        GameTooltip:AddLine("- Names: partial, case-insensitive match", 1, 1, 1, true)
+        GameTooltip:AddLine("- Spell IDs: exact match", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    blacklistContainer:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
     end)
 
     return panel

@@ -306,6 +306,17 @@ function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras, dummyAuraTable)
     local grow = (filter == "HELPFUL") and (prof.buffGrow or "RIGHT") or (prof.debuffGrow or "RIGHT")
     local sortMethod = prof.sortMethod or "INDEX"
     local filterText = (prof.filterText or ""):lower()
+    local auraBlacklist = prof.auraBlacklist or {}
+    -- Build a list for name substrings (lowercased) and a lookup table for spell IDs
+    local nameBlacklist = {}
+    local idBlacklist = {}
+    for _, v in pairs(auraBlacklist) do
+        if type(v) == "string" then
+            table.insert(nameBlacklist, v:lower())
+        elseif type(v) == "number" then
+            idBlacklist[v] = true
+        end
+    end
     local numColumns = (filter == "HELPFUL") and (prof.buffColumns or 12) or (prof.debuffColumns or 12)
     local numRows = (filter == "HELPFUL") and (prof.buffRows or 1) or (prof.debuffRows or 1)
     local size = (filter == "HELPFUL") and (prof.buffSize or 32) or (prof.debuffSize or 32)
@@ -313,19 +324,32 @@ function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras, dummyAuraTable)
     if dummyAuraTable then
         for i = 1, math.min(maxAuras, #dummyAuraTable) do
             local aura = dummyAuraTable[i]
-            if aura and (filterText == "" or (aura.name and aura.name:lower():find(filterText, 1, true))) then
-                table.insert(auras, { aura = aura, index = i })
-            end
+            table.insert(auras, { aura = aura, index = i })
         end
     else
         -- First handle regular auras
         for i = 1, maxAuras do
             local aura = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and
-            C_UnitAuras.GetAuraDataByIndex(unit, i, filter)
+                C_UnitAuras.GetAuraDataByIndex(unit, i, filter)
             if aura and (filterText == "" or (aura.name and aura.name:lower():find(filterText, 1, true))) then
-                table.insert(auras, { aura = aura, index = i })
+                local isBlacklisted = false
+                if aura.name then
+                    local lowerName = aura.name:lower()
+                    for _, substr in ipairs(nameBlacklist) do
+                        if lowerName:find(substr, 1, true) then
+                            isBlacklisted = true
+                            break
+                    end
+                end
+                if not isBlacklisted and aura.spellId and idBlacklist[aura.spellId] then
+                    isBlacklisted = true
+                end
+                if not isBlacklisted then
+                    table.insert(auras, { aura = aura, index = i })
+                end
             end
         end
+    end
         
         -- If we're looking for buffs and this is the player, check weapon enchants
         if filter == "HELPFUL" and unit == "player" then
