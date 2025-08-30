@@ -248,8 +248,16 @@ function AuraFix:CreateAuraButton(parent, unit, filter, index)
 
     -- Add a visible background to the button
     button.bg = button:CreateTexture(nil, "BACKGROUND")
-    button.bg:SetAllPoints()
-    button.bg:SetColorTexture(0, 0, 0, 0.4) -- semi-transparent black
+    button.bg:SetPoint("TOPLEFT", -1, 1) -- Extend 1 pixel outward
+    button.bg:SetPoint("BOTTOMRIGHT", 1, -1) -- Extend 1 pixel outward
+    -- Set background color based on highlight options
+    if filter == "HELPFUL" then
+        button.bg:SetColorTexture(0, 0.4, 1, 0.4) -- blue highlight
+    elseif filter == "HARMFUL" then
+        button.bg:SetColorTexture(1, 0, 0, 0.4) -- red highlight
+    else
+        button.bg:SetColorTexture(0, 0, 0, 0.4) -- semi-transparent black
+    end
 
     button.icon = button:CreateTexture(nil, "ARTWORK")
     button.icon:SetAllPoints()
@@ -467,7 +475,6 @@ end
 HideBlizzardAuras()
 
 
--- BlizzardEditMode modular integration
 local function enterEditMode_AuraFix()
     -- Enable movement and mouse for both frames
     AuraFix.Frame:EnableMouse(true)
@@ -521,10 +528,53 @@ if addon.AddEditModeVisibleModule then
     })
 end
 
--- Optionally, set up a DB key for the checkbox
 function addon.GetDBBool(key)
     if key == "EditModeShowAuraFixUI" then
         return true -- Always show for now, or hook to your savedvars
     end
     return false
 end
+
+
+-- SETTINGS PANEL: Add highlight checkboxes under config mode
+local function AddAuraFixSettingsPanel()
+    if not Settings or not Settings.RegisterAddonCategory then return end
+
+    local category, layout = Settings.RegisterVerticalLayoutCategory("AuraFix")
+
+    -- Buff Highlight Checkbox
+    local buffCB = Settings.CreateCheckBox(category, "Show Buff Background Highlight", function()
+        return AuraFixDB.showBuffBackground or false
+    end, function(checked)
+        AuraFixDB.showBuffBackground = checked
+        for _, btn in ipairs(AuraFix.buttons) do
+            if btn.bg and btn.filter == "HELPFUL" then
+                if checked then
+                    btn.bg:SetColorTexture(0, 0.4, 1, 0.4)
+                else
+                    btn.bg:SetColorTexture(0, 0, 0, 0.4)
+                end
+            end
+        end
+    end)
+
+    -- Debuff Highlight Checkbox
+    local debuffCB = Settings.CreateCheckBox(category, "Show Debuff Background Highlight", function()
+        return AuraFixDB.showDebuffBackground or false
+    end, function(checked)
+        AuraFixDB.showDebuffBackground = checked
+        for _, btn in ipairs(AuraFix.debuffButtons) do
+            if btn.bg and btn.filter == "HARMFUL" then
+                if checked then
+                    btn.bg:SetColorTexture(1, 0, 0, 0.4)
+                else
+                    btn.bg:SetColorTexture(0, 0, 0, 0.4)
+                end
+            end
+        end
+    end)
+
+    Settings.RegisterAddonCategory(category)
+end
+
+AddAuraFixSettingsPanel()
