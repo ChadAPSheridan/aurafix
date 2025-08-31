@@ -123,6 +123,8 @@ function CreateAuraFixOptionsPanel()
     local buffContainer = CreateContainer("", panel, 650, 500)
     buffContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -45)
 
+    local filterContainer = CreateContainer("", panel, 650, 500)
+    filterContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -45)
 
     -- Dummy aura update helper (must be defined before RefreshProfileDropdown)
     local function ForceAuraFixVisualUpdate()
@@ -721,7 +723,7 @@ function CreateAuraFixOptionsPanel()
             buffRowsBox:SetText(tostring(prof.buffRows or 1))
             debuffColsBox:SetText(tostring(prof.debuffColumns or 12))
             debuffRowsBox:SetText(tostring(prof.debuffRows or 1))
-            filterBox:SetText(prof.filterText or "")
+
             -- Re-initialize dropdowns to ensure correct values are loaded
             if buffGrowDD and buffGrowDD.initFunc then
                 UIDropDownMenu_Initialize(buffGrowDD, buffGrowDD.initFunc)
@@ -764,9 +766,29 @@ function CreateAuraFixOptionsPanel()
     end)
 
     -- Create the blacklist section
-    local blacklistContainer = CreateFrame("Frame", nil, panel, "BackdropTemplate")
-    blacklistContainer:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 40, 0)
-    blacklistContainer:SetSize(520, 120)
+    local blacklistLabel = filterContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    blacklistLabel:SetPoint("BOTTOMLEFT", filterContainer, "TOPLEFT", 20, -45)
+    blacklistLabel:SetText("Aura Blacklist")
+
+    local blacklistHelp = filterContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    blacklistHelp:SetPoint("BOTTOMLEFT", blacklistLabel, "TOPLEFT", 0, -30)
+    blacklistHelp:SetText("(Enter aura name or spell ID)")
+
+    -- Create new entry box
+    local newEntryBox = CreateFrame("EditBox", nil, filterContainer, "InputBoxTemplate")
+    newEntryBox:SetSize(120, 20)
+    newEntryBox:SetPoint("BOTTOMLEFT", blacklistHelp, "TOPLEFT", 0, -40)
+    newEntryBox:SetAutoFocus(false)
+    newEntryBox:SetText("")
+
+    local addButton = CreateFrame("Button", nil, filterContainer, "UIPanelButtonTemplate")
+    addButton:SetSize(60, 22)
+    addButton:SetPoint("LEFT", newEntryBox, "RIGHT", 5, 0)
+    addButton:SetText("Add")
+
+    local blacklistContainer = CreateFrame("Frame", nil, filterContainer, "BackdropTemplate")
+    blacklistContainer:SetPoint("TOPRIGHT", filterContainer, "TOPRIGHT", -40, -45)
+    blacklistContainer:SetSize(400, 200)
 
     -- Set up the backdrop
     blacklistContainer:SetBackdrop({
@@ -774,38 +796,18 @@ function CreateAuraFixOptionsPanel()
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 }
-    })
+    })        
     blacklistContainer:SetBackdropColor(0, 0, 0, 0.3)
     blacklistContainer:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.8)
 
-    local blacklistLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    blacklistLabel:SetPoint("BOTTOMLEFT", blacklistContainer, "TOPLEFT", 0, 5)
-    blacklistLabel:SetText("Aura Blacklist")
-
-    local blacklistHelp = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    blacklistHelp:SetPoint("LEFT", blacklistLabel, "RIGHT", 5, 0)
-    blacklistHelp:SetText("(Enter aura name or spell ID)")
-
     -- Create scrollable list of current blacklist entries
     local scrollFrame = CreateFrame("ScrollFrame", nil, blacklistContainer, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 0, 0)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -30, 25)
+    scrollFrame:SetPoint("TOPLEFT", blacklistContainer, "TOPLEFT", 5, -5)
+    scrollFrame:SetPoint("BOTTOMRIGHT", blacklistContainer, "BOTTOMRIGHT", -5, 5)
 
     local content = CreateFrame("Frame", nil, scrollFrame)
-    content:SetSize(490, 10) -- Height will be adjusted dynamically
+    content:SetSize(400, 10) -- Height will be adjusted dynamically
     scrollFrame:SetScrollChild(content)
-
-    -- Create new entry box
-    local newEntryBox = CreateFrame("EditBox", nil, blacklistContainer, "InputBoxTemplate")
-    newEntryBox:SetSize(200, 20)
-    newEntryBox:SetPoint("BOTTOMLEFT", blacklistContainer, "BOTTOMLEFT", 0, 0)
-    newEntryBox:SetAutoFocus(false)
-    newEntryBox:SetText("")
-
-    local addButton = CreateFrame("Button", nil, blacklistContainer, "UIPanelButtonTemplate")
-    addButton:SetSize(60, 22)
-    addButton:SetPoint("LEFT", newEntryBox, "RIGHT", 5, 0)
-    addButton:SetText("Add")
 
     -- Function to refresh the blacklist display
     local function RefreshBlacklist()
@@ -821,7 +823,7 @@ function CreateAuraFixOptionsPanel()
         local height = 0
         for i, entry in ipairs(prof.auraBlacklist) do
             local entryFrame = CreateFrame("Frame", nil, content)
-            entryFrame:SetSize(470, 20)
+            entryFrame:SetSize(300, 20)
             entryFrame:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -height)
 
             local text = entryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -903,7 +905,6 @@ function CreateAuraFixOptionsPanel()
     -- Add tooltips
     blacklistContainer:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
-        GameTooltip:SetText("Aura Blacklist")
         GameTooltip:AddLine(
         "Add aura names (partial, case-insensitive) or spell IDs (exact) to prevent them from showing.", 1, 1, 1, true)
         GameTooltip:AddLine("- Names: partial, case-insensitive match", 1, 1, 1, true)
@@ -925,7 +926,7 @@ function CreateAuraFixOptionsPanel()
         local tabs = {
             { name = "General", content = generalContainer },
             { name = "Auras",   content = buffContainer },
-            { name = "Filters", content = blacklistContainer },
+            { name = "Filters", content = filterContainer },
         }
 
         -- Create tabs
@@ -936,8 +937,22 @@ function CreateAuraFixOptionsPanel()
             tab:SetID(i)
             tab:SetText(tabInfo.name)
             tab:SetSize(100, 24)
-            tab:SetPoint("TOPLEFT", tabContainer, "TOPLEFT", (i - 1) * 110, 0)
+            tab:SetPoint("TOPLEFT", tabContainer, "TOPLEFT", (i - 1) * 110, 5)
+            -- Adjust tab text position (move it down)
+            local textRegion = tab:GetFontString()
+            if textRegion then
+                textRegion:ClearAllPoints()
+                textRegion:SetPoint("CENTER", tab, "CENTER", 0, -4)
+            end
             tabFrames[i] = tab
+
+            -- Flip tab textures vertically if present
+            local regions = {tab:GetRegions()}
+            for _, region in ipairs(regions) do
+                if region and region.GetObjectType and region:GetObjectType() == "Texture" then
+                    region:SetTexCoord(0, 1, 1, 0)
+                end
+            end
 
             -- Tab click handler
             tab:SetScript("OnClick", function()
