@@ -17,6 +17,7 @@ jobs:
       - name: Create Zip File
         run: |
           mkdir -p temp/AuraFix
+          shopt -s extglob
           cp -r ./!(.|..|.git*) temp/AuraFix/
           cd temp
           zip -r ../AuraFix.zip AuraFix
