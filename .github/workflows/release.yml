@@ -18,7 +18,7 @@ jobs:
         run: |
           mkdir -p temp/AuraFix
           shopt -s extglob
-          cp -r ./!(.|..|.git*) temp/AuraFix/
+          cp -r ./!(.|..|.git*|temp) temp/AuraFix/
           cd temp
           zip -r ../AuraFix.zip AuraFix
           cd ..
