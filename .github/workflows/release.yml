@@ -43,5 +43,13 @@ jobs:
           curl -X POST \
             -H "X-Api-Token: $CURSEFORGE_TOKEN" \
             -H "Content-Type: application/json" \
-            --data-binary @metadata.json \
+            --data '{
+              "metadata": {
+                "changelog": "'"$(git log -1 --pretty=%B)"'",
+                "changelogType": "markdown",
+                "displayName": "AuraFix",
+                "gameVersions": [112000, 112500],
+                "releaseType": "release"
+              }
+            }' \
             "https://www.curseforge.com/api/projects/1335521/upload-file?file=AuraFix.zip"
