@@ -4,52 +4,23 @@ on:
   push:
     branches:
       - master
+    tags:
+      - '**'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
+    env:
+      CF_API_KEY: ${{ secrets.API_KEY }}
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Clone project
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
-      - name: Create Zip File
-        run: |
-          mkdir -p temp/AuraFix
-          shopt -s extglob
-          cp -r ./!(.|..|.git*|temp) temp/AuraFix/
-          cd temp
-          zip -r ../AuraFix.zip AuraFix
-          cd ..
-          rm -rf temp
-          
-      - name: Create metadata file
-        run: |
-          cat << EOF > metadata.json
-          {
-            "changelog": "$(git log -1 --pretty=%B)",
-            "changelogType": "markdown",
-            "displayName": "AuraFix",
-            "gameVersions": [112000, 112500],
-            "releaseType": "release"
-          }
-          EOF
-          
-      - name: Upload to CurseForge
-        env:
-          CURSEFORGE_TOKEN: ${{ secrets.API_KEY }}
-        run: |
-          curl -X POST \
-            -H "X-Api-Token: $CURSEFORGE_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data '{
-              "metadata": {
-                "changelog": "'"$(git log -1 --pretty=%B)"'",
-                "changelogType": "markdown",
-                "displayName": "AuraFix",
-                "gameVersions": [112000, 112500],
-                "releaseType": "release"
-              }
-            }' \
-            "https://www.curseforge.com/api/projects/1335521/upload-file?file=AuraFix.zip"
+
+      - name: Package and release
+        uses: BigWigsMods/packager@v2
+        with:
+          args: -p 1335521
