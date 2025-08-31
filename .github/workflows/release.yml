@@ -22,12 +22,6 @@ jobs:
           zip -r ../AuraFix.zip AuraFix
           cd ..
           rm -rf temp
-        
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: AuraFix
-          path: AuraFix.zip
           
       - name: Create metadata file
         run: |

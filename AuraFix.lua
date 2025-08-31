@@ -1,4 +1,13 @@
-
+-- Helper to get current profile (for profile-aware settings)
+local function GetCurrentProfile()
+    if _G.AuraFixDB and _G.AuraFixCharDB and _G.AuraFixDB.profiles and _G.AuraFixCharDB.currentProfile then
+        if _G.AuraFixDB.debugMode then
+            print("AuraFix: Current profile is '".._G.AuraFixCharDB.currentProfile.."'")
+        end
+        return _G.AuraFixDB.profiles[_G.AuraFixCharDB.currentProfile] or {}
+    end
+    return AuraFixDB or {}
+end
 -- Persistent settings DB (must be initialized before any use)
 local defaults = {
     buffSize = 32,
@@ -12,16 +21,40 @@ local defaults = {
     sortMethod = "INDEX",
     filterText = "",
     debugMode = false,  -- debug mode flag
+    buffColumns = 12,   -- new setting for buff columns
+    buffRows = 1,       -- new setting for buff rows
+    debuffColumns = 12, -- new setting for debuff columns
+    debuffRows = 1      -- new setting for debuff rows
 }
 AuraFixDB = AuraFixDB or {}
 for k, v in pairs(defaults) do
     if AuraFixDB[k] == nil then AuraFixDB[k] = v end
 end
 
+
 local AuraFix = {}
 _G.AuraFix = AuraFix
 
-_G.AuraFix = AuraFix
+-- DevTool integration for debugging
+function AuraFix:DevInspect(data, label)
+    if DevTool then
+        DevTool:AddData(data, label or "AuraFix Data")
+    else
+        print("DevTool is not loaded.")
+    end
+end
+
+-- Slash command to inspect AuraFixDB in DevTool
+SLASH_AURAFIXDEV1 = "/afdev"
+SlashCmdList["AURAFIXDEV"] = function()
+    if AuraFix and AuraFix.DevInspect then
+        AuraFix:DevInspect(AuraFixDB, "AuraFixDB")
+        AuraFix:DevInspect(AuraFixCharDB, "AuraFixCharDB")
+        AuraFix:DevInspect(AuraFix.profile, "Current Profile")
+        AuraFix:DevInspect(AuraFixDB.profiles, "All Profiles")
+        AuraFix:DevInspect(AuraFixDB.profiles[AuraFixCharDB.currentProfile], "Active Profile Settings")
+    end
+end
 
 -- BlizzardEditMode integration
 local addon = AuraFix
@@ -36,9 +69,11 @@ function API.CreateBlizzardCheckButton(parent)
     function cb:SetLabel(text)
         if self.Text then self.Text:SetText(text) end
     end
+
     function cb:SetDBKey(key)
         self.dbKey = key
     end
+
     function cb:SetTooltip(func)
         self.tooltipFunc = func
         self:SetScript("OnEnter", function(self)
@@ -54,9 +89,11 @@ function API.CreateBlizzardCheckButton(parent)
         end)
         self:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
+
     function cb:SetOnCheckedFunc(func)
         self:SetScript("OnClick", function(self) func(self:GetChecked()) end)
     end
+
     return cb
 end
 
@@ -72,59 +109,99 @@ AuraFix.debuffButtons = {}
 
 -- Aura update logic (simplified, standalone)
 function AuraFix:UpdateAura(button, index)
-	local aura = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and C_UnitAuras.GetAuraDataByIndex(button.unit, index, button.filter)
-	if not aura then 
-		if AuraFixDB.debugMode then
-			print("AuraFix: UpdateAura no aura for", button.unit, index, button.filter)
-		end
-		return 
-	end
-	if AuraFixDB.debugMode then
-		print("AuraFix: UpdateAura", aura.name, aura.icon)
-	end
+    local aura = button.aura or (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and C_UnitAuras.GetAuraDataByIndex(button.unit, index, button.filter))
+    if not aura then
+        if AuraFixDB and AuraFixDB.debugMode then
+            print("AuraFix: UpdateAura no aura for", button.unit, index, button.filter)
+        end
+        return
+    end
+    if AuraFixDB and AuraFixDB.debugMode then
+        print("AuraFix: UpdateAura", aura.name, aura.icon)
+    end
 
-	local name = aura.name
-	local icon = aura.icon
-	local count = (aura.applications ~= nil and aura.applications) or (aura.count ~= nil and aura.count) or 0
-	local debuffType = (aura.dispelName ~= nil and aura.dispelName) or (aura.debuffType ~= nil and aura.debuffType) or ""
-	local duration = aura.duration
-	local expiration = aura.expirationTime
-	local modRate = aura.timeMod
+    local name = aura.name
+    local icon = aura.icon
+    local count = (aura and (aura.applications or aura.count)) or 0
+    local debuffType = (aura and (aura.dispelName or aura.debuffType)) or ""
+    local duration = aura.duration
+    local expiration = aura.expirationTime
+    local modRate = aura.timeMod
 
-	button.icon:SetTexture(icon or 134400) -- fallback to question mark icon if missing
-	button.count:SetText(count and count > 1 and count or "")
-	button.duration = duration
-	button.expiration = expiration
-	button.modRate = modRate or 1
-	button.timeLeft = (expiration and duration and expiration - GetTime()) or 0
-	
-	-- Set size based on filter type
-	local size = (button.filter == "HELPFUL") and AuraFixDB.buffSize or AuraFixDB.debuffSize
-	button:SetSize(size, size)
-	
-	button.icon:Show()
-	button.bg:Show()
-	-- button:Show() -- handled in UpdateAllAuras
+    button.icon:SetTexture(icon or 134400)
+    button.count:SetText(count > 1 and count or "")
+    button.duration = duration
+    button.expiration = expiration
+    button.modRate = modRate or 1
+    button.timeLeft = (expiration and duration and expiration - GetTime()) or 0
+
+    local prof = GetCurrentProfile()
+    local isBuff = (button.filter == "HELPFUL")
+    local size = isBuff and (prof.buffSize or 32) or (prof.debuffSize or 32)
+    button:SetSize(size, size)
+    button.icon:Show()
 end
 
 -- Debug: Print a message when AuraFix is loaded
 local function AuraFix_DebugLoaded()
-	if not AuraFix._debugPrinted then
-		print("|cff00ff00AuraFix loaded and active!|r")
-		AuraFix._debugPrinted = true
-	end
-	
-	if AuraFixDB.debugMode then
-		print("|cff00ff00AuraFix debug mode is enabled.|r")
-	end
+    if not AuraFix._debugPrinted then
+        print("|cff00ff00AuraFix loaded and active!|r")
+        AuraFix._debugPrinted = true
+    end
+
+    if AuraFixDB.debugMode then
+        print("|cff00ff00AuraFix debug mode is enabled.|r")
+    end
 end
+
+
+-- Initialization: ensure DB and profile are set up before anything else
+local function AuraFix_InitializeDBAndProfile()
+    if not _G.AuraFixDB then _G.AuraFixDB = {} end
+    if not _G.AuraFixDB.profiles then
+        _G.AuraFixDB.profiles = { ["Default"] = {} }
+    end
+    if not _G.AuraFixCharDB then _G.AuraFixCharDB = {} end
+    if not _G.AuraFixCharDB.currentProfile then
+        _G.AuraFixCharDB.currentProfile = "Default"
+    end
+    if not _G.AuraFixDB.profiles[_G.AuraFixCharDB.currentProfile] then
+        _G.AuraFixDB.profiles[_G.AuraFixCharDB.currentProfile] = {}
+    end
+    -- Set active profile reference
+    _G.AuraFix = _G.AuraFix or {}
+    _G.AuraFix.profile = _G.AuraFixDB.profiles[_G.AuraFixCharDB.currentProfile]
+end
+
+local function AuraFix_ApplyAllSettingsAndUpdate()
+    if _G.ApplyAuraFixSettings then _G.ApplyAuraFixSettings() end
+    if _G.AuraFix and _G.AuraFix.UpdateAllAuras and _G.AuraFix.Frame then
+        _G.AuraFix:UpdateAllAuras(_G.AuraFix.Frame, "player", "HELPFUL", 20)
+    end
+    if _G.AuraFix and _G.AuraFix.UpdateAllAuras and _G.AuraFix.DebuffFrame then
+        _G.AuraFix:UpdateAllAuras(_G.AuraFix.DebuffFrame, "player", "HARMFUL", 20)
+    end
+end
+
 
 local debugFrame = CreateFrame("Frame")
 debugFrame:RegisterEvent("ADDON_LOADED")
-debugFrame:SetScript("OnEvent", function(self, event, addon)
-	if addon == "AuraFix" then
-		AuraFix_DebugLoaded()
-	end
+debugFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+debugFrame:RegisterEvent("UI_SCALE_CHANGED")
+debugFrame:RegisterEvent("DISPLAY_SIZE_CHANGED")
+debugFrame:SetScript("OnEvent", function(self, event, ...)
+    if event == "ADDON_LOADED" then
+        local addon = ...
+        if addon == "AuraFix" then
+            AuraFix_InitializeDBAndProfile()
+            if _G.InitializeDB then _G.InitializeDB() end -- call config's DB init if present
+            AuraFix_DebugLoaded()
+            -- Don't apply settings yet, wait for PLAYER_ENTERING_WORLD
+        end
+    elseif event == "PLAYER_ENTERING_WORLD" or event == "UI_SCALE_CHANGED" or event == "DISPLAY_SIZE_CHANGED" then
+        -- Now the UI is fully loaded or display changed, apply settings with correct screen size
+        C_Timer.After(0.1, AuraFix_ApplyAllSettingsAndUpdate)
+    end
 end)
 
 -- Add debug toggle command
@@ -139,21 +216,22 @@ SlashCmdList["AURAFIXDEBUG"] = function(msg)
 end
 
 function AuraFix:Button_OnUpdate(elapsed)
-	if self.expiration and self.duration and self.duration > 0 then
-		self.timeLeft = (self.expiration - GetTime()) / (self.modRate or 1)
-		if self.timeLeft < 0.1 then
-			self:Hide()
-		else
-			if self.timeLeft > 60 then
-				self.durationText:SetText(string.format("%dm", math.floor(self.timeLeft/60), math.floor(self.timeLeft%60)))
-			else
-				self.durationText:SetText(string.format("%.0f", self.timeLeft))
-			end
-		end
-	else
-		-- Static buff: no duration, just clear the timer text
-		self.durationText:SetText("")
-	end
+    if self.expiration and self.duration and self.duration > 0 then
+        self.timeLeft = (self.expiration - GetTime()) / (self.modRate or 1)
+        if self.timeLeft < 0.1 then
+            self:Hide()
+        else
+            if self.timeLeft > 60 then
+                self.durationText:SetText(string.format("%dm", math.floor(self.timeLeft / 60),
+                    math.floor(self.timeLeft % 60)))
+            else
+                self.durationText:SetText(string.format("%.0f", self.timeLeft))
+            end
+        end
+    else
+        -- Static buff: no duration, just clear the timer text
+        self.durationText:SetText("")
+    end
 end
 
 -- Create a simple aura button
@@ -161,16 +239,25 @@ function AuraFix:CreateAuraButton(parent, unit, filter, index)
     local button = CreateFrame("Button", nil, parent)
     button.unit = unit
     button.filter = filter
-    button.auraIndex = index  -- Changed to auraIndex to be more specific
-    
-    -- Set initial size based on filter type
-    local size = (filter == "HELPFUL") and AuraFixDB.buffSize or AuraFixDB.debuffSize
+    button.auraIndex = index -- Changed to auraIndex to be more specific
+
+    -- Set initial size based on filter type and current profile
+    local prof = GetCurrentProfile()
+    local size = (filter == "HELPFUL") and (prof.buffSize or 32) or (prof.debuffSize or 32)
     button:SetSize(size, size)
 
     -- Add a visible background to the button
     button.bg = button:CreateTexture(nil, "BACKGROUND")
-    button.bg:SetAllPoints()
-    button.bg:SetColorTexture(0, 0, 0, 0.4) -- semi-transparent black
+    button.bg:SetPoint("TOPLEFT", -1, 1) -- Extend 1 pixel outward
+    button.bg:SetPoint("BOTTOMRIGHT", 1, -1) -- Extend 1 pixel outward
+    -- Set background color based on highlight options
+    if filter == "HELPFUL" then
+        button.bg:SetColorTexture(0, 0.4, 1, 0.4) -- blue highlight
+    elseif filter == "HARMFUL" then
+        button.bg:SetColorTexture(1, 0, 0, 0.4) -- red highlight
+    else
+        button.bg:SetColorTexture(0, 0, 0, 0.4) -- semi-transparent black
+    end
 
     button.icon = button:CreateTexture(nil, "ARTWORK")
     button.icon:SetAllPoints()
@@ -179,7 +266,7 @@ function AuraFix:CreateAuraButton(parent, unit, filter, index)
     button.count:SetPoint("BOTTOMRIGHT", -2, 2)
 
     button.durationText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    button.durationText:SetPoint("TOP", button, "BOTTOM", 0, -2)
+    button.durationText:SetPoint("TOP", button, "BOTTOM", 0, 0)
 
     button:SetScript("OnUpdate", AuraFix.Button_OnUpdate)
 
@@ -213,16 +300,86 @@ end
 
 -- Main update loop: update all auras for a unit
 
-function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras)
+function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras, dummyAuraTable)
+    local prof = GetCurrentProfile()
     local buttonTable = (filter == "HELPFUL") and self.buttons or self.debuffButtons
-    local grow = (filter == "HELPFUL") and (AuraFixDB.buffGrow or "RIGHT") or (AuraFixDB.debuffGrow or "RIGHT")
-    local sortMethod = AuraFixDB.sortMethod or "INDEX"
-    local filterText = (AuraFixDB.filterText or ""):lower()
+    local grow = (filter == "HELPFUL") and (prof.buffGrow or "RIGHT") or (prof.debuffGrow or "RIGHT")
+    local sortMethod = prof.sortMethod or "INDEX"
+    local filterText = (prof.filterText or ""):lower()
+    local auraBlacklist = prof.auraBlacklist or {}
+    -- Build a list for name substrings (lowercased) and a lookup table for spell IDs
+    local nameBlacklist = {}
+    local idBlacklist = {}
+    for _, v in pairs(auraBlacklist) do
+        if type(v) == "string" then
+            table.insert(nameBlacklist, v:lower())
+        elseif type(v) == "number" then
+            idBlacklist[v] = true
+        end
+    end
+    local numColumns = (filter == "HELPFUL") and (prof.buffColumns or 12) or (prof.debuffColumns or 12)
+    local numRows = (filter == "HELPFUL") and (prof.buffRows or 1) or (prof.debuffRows or 1)
+    local size = (filter == "HELPFUL") and (prof.buffSize or 32) or (prof.debuffSize or 32)
     local auras = {}
-    for i = 1, maxAuras do
-        local aura = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and C_UnitAuras.GetAuraDataByIndex(unit, i, filter)
-        if aura and (filterText == "" or (aura.name and aura.name:lower():find(filterText, 1, true))) then
-            table.insert(auras, {aura=aura, index=i})
+    if dummyAuraTable then
+        for i = 1, math.min(maxAuras, #dummyAuraTable) do
+            local aura = dummyAuraTable[i]
+            table.insert(auras, { aura = aura, index = i })
+        end
+    else
+        -- First handle regular auras
+        for i = 1, maxAuras do
+            local aura = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and
+                C_UnitAuras.GetAuraDataByIndex(unit, i, filter)
+            if aura and (filterText == "" or (aura.name and aura.name:lower():find(filterText, 1, true))) then
+                local isBlacklisted = false
+                if aura.name then
+                    local lowerName = aura.name:lower()
+                    for _, substr in ipairs(nameBlacklist) do
+                        if lowerName:find(substr, 1, true) then
+                            isBlacklisted = true
+                            break
+                    end
+                end
+                if not isBlacklisted and aura.spellId and idBlacklist[aura.spellId] then
+                    isBlacklisted = true
+                end
+                if not isBlacklisted then
+                    table.insert(auras, { aura = aura, index = i })
+                end
+            end
+        end
+    end
+        
+        -- If we're looking for buffs and this is the player, check weapon enchants
+        if filter == "HELPFUL" and unit == "player" then
+            local hasMainHandEnchant, mainHandExpiration, mainHandCharges, mainHandEnchantID, hasOffHandEnchant, offHandExpiration, offHandCharges, offHandEnchantId = GetWeaponEnchantInfo()
+            
+            if hasMainHandEnchant then
+                local mainHandAura = {
+                    name = "Weapon Enchant",
+                    icon = GetInventoryItemTexture("player", 16) or 134400, -- Main hand slot
+                    count = mainHandCharges or 0,
+                    duration = mainHandExpiration and mainHandExpiration/1000 or 0,
+                    expirationTime = mainHandExpiration and (GetTime() + mainHandExpiration/1000) or 0,
+                    isWeaponEnchant = true,
+                    slot = 16
+                }
+                table.insert(auras, { aura = mainHandAura, index = maxAuras + 1 })
+            end
+            
+            if hasOffHandEnchant then
+                local offHandAura = {
+                    name = "Off-Hand Enchant",
+                    icon = GetInventoryItemTexture("player", 17) or 134400, -- Off hand slot
+                    count = offHandCharges or 0,
+                    duration = offHandExpiration and offHandExpiration/1000 or 0,
+                    expirationTime = offHandExpiration and (GetTime() + offHandExpiration/1000) or 0,
+                    isWeaponEnchant = true,
+                    slot = 17
+                }
+                table.insert(auras, { aura = offHandAura, index = maxAuras + 2 })
+            end
         end
     end
     -- Sorting
@@ -238,38 +395,42 @@ function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras)
     -- Place buttons
     local shown = 0
     for i, data in ipairs(auras) do
+        if math.floor(shown / numColumns) >= numRows then
+            break
+        end
         local button = buttonTable[i] or self:CreateAuraButton(parent, unit, filter, data.index)
         buttonTable[i] = button
-        button.auraIndex = data.index  -- Ensure the button's aura index is always current
-        self:UpdateAura(button, data.index)
+        button.auraIndex = data.index
+        button.aura = data.aura -- Set the full aura table for dummy auras
         button:ClearAllPoints()
         button:SetParent(parent)
-        
-        -- Set button size based on filter type
-        local size = (filter == "HELPFUL") and AuraFixDB.buffSize or AuraFixDB.debuffSize
+        self:UpdateAura(button, data.index)
         button:SetSize(size, size)
-        
-        -- Calculate row and column
-        local row = math.floor(shown / 12)
-        local col = shown % 12
-        
+        local row = math.floor(shown / numColumns)
+        local col = shown % numColumns
         local xOffset = (col * (size + 4))
-        local yOffset = -(row * (size + 8))  -- Add some vertical spacing between rows
-        
+        local yOffset = -((row * (size + 10)) + 4)
         if grow == "LEFT" then
             xOffset = -xOffset
-            button:SetPoint("RIGHT", parent, "RIGHT", xOffset, yOffset)
+            button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", xOffset, yOffset)
         else
-            button:SetPoint("LEFT", parent, "LEFT", xOffset, yOffset)
+            button:SetPoint("TOPLEFT", parent, "TOPLEFT", xOffset, yOffset)
         end
         button:Show()
         shown = shown + 1
     end
-    
-    -- Update parent frame height based on number of rows
-    local rows = math.ceil(shown / 12)
-    local size = (filter == "HELPFUL") and AuraFixDB.buffSize or AuraFixDB.debuffSize
-    parent:SetHeight(rows * (size + 8))
+
+    -- Also update all visible buttons even if auras didn't change (for live settings update)
+    for i = shown + 1, #buttonTable do
+        if buttonTable[i] then
+            self:UpdateAura(buttonTable[i], buttonTable[i].auraIndex or 1)
+            buttonTable[i]:Hide()
+        end
+    end
+
+    -- Update parent frame height based on actual number of rows used
+    local usedRows = math.min(math.ceil(shown / numColumns), numRows)
+    parent:SetHeight(usedRows * (size + 8))
     -- Hide unused buttons
     for i = shown + 1, #buttonTable do
         if buttonTable[i] then buttonTable[i]:Hide() end
@@ -280,65 +441,77 @@ end
 local function GetScreenSize()
     local width = GetScreenWidth and GetScreenWidth() or 1920
     local height = GetScreenHeight and GetScreenHeight() or 1080
-	print("AuraFix: Screen size", width, height)
     return width, height
 end
+-- Apply settings from DB to frames
 
--- Example usage: create a frame and update auras for the player
 AuraFix.Frame = CreateFrame("Frame", "AuraFixFrame", UIParent)
 AuraFix.Frame:SetPoint("CENTER")
-AuraFix.Frame:SetSize(400, 40)
-AuraFix.Frame.background = AuraFix.Frame:CreateTexture(nil, "BACKGROUND")
-AuraFix.Frame.background:SetAllPoints()
-AuraFix.Frame.background:SetColorTexture(0, 0.5, 1, 0.2) -- light blue, semi-transparent
 
-AuraFix.Frame:SetScript("OnEvent", function(self, event, ...)
+AuraFix.DebuffFrame = CreateFrame("Frame", "AuraFixDebuffFrame", UIParent)
+AuraFix.DebuffFrame:SetPoint("CENTER", UIParent, "CENTER", 0, -50) -- Default position
+
+local function ApplyAuraFixSettings()
+    local prof = GetCurrentProfile()
+    local screenWidth = GetScreenWidth()
+    local screenHeight = GetScreenHeight()
+    -- Buff frame
+    AuraFix.Frame:ClearAllPoints()
+    local buffWidth = (prof.buffColumns or 12) * ((prof.buffSize or 32) + 4)
+    local buffHeight = (prof.buffRows or 1) * ((prof.buffSize or 32) + 8)
+    local buffAnchor, parentAnchor
+    if (prof.buffGrow or "RIGHT") == "LEFT" then
+        buffAnchor = "TOPRIGHT"
+        parentAnchor = "TOPRIGHT"
+    else
+        buffAnchor = "TOPLEFT"
+        parentAnchor = "TOPLEFT"
+    end
+    -- Position relative to screen center plus offset, but keep the correct corner fixed
+    local baseX = (screenWidth / 2) + (prof.buffX or 0)
+    local baseY = (screenHeight / 2) + (prof.buffY or 0)
+    -- Convert center-based offset to top left/right anchor
+    if buffAnchor == "TOPLEFT" then
+        AuraFix.Frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", baseX, baseY)
+    else
+        AuraFix.Frame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", baseX, baseY)
+    end
+    AuraFix.Frame:SetSize(buffWidth, buffHeight)
+    -- Debuff frame (anchor logic matches buff frame)
+    AuraFix.DebuffFrame:ClearAllPoints()
+    local debuffWidth = (prof.debuffColumns or 12) * ((prof.debuffSize or 32) + 4)
+    local debuffHeight = (prof.debuffRows or 1) * ((prof.debuffSize or 32) + 8)
+    local debuffAnchor, debuffParentAnchor
+    if (prof.debuffGrow or "RIGHT") == "LEFT" then
+        debuffAnchor = "TOPRIGHT"
+        debuffParentAnchor = "TOPRIGHT"
+    else
+        debuffAnchor = "TOPLEFT"
+        debuffParentAnchor = "TOPLEFT"
+    end
+    local debuffBaseX = (screenWidth / 2) + (prof.debuffX or 0)
+    local debuffBaseY = (screenHeight / 2) + (prof.debuffY or -50)
+    if debuffAnchor == "TOPLEFT" then
+        AuraFix.DebuffFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", debuffBaseX, debuffBaseY)
+    else
+        AuraFix.DebuffFrame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", debuffBaseX, debuffBaseY)
+    end
+    AuraFix.DebuffFrame:SetSize(debuffWidth, debuffHeight)
+end
+_G.ApplyAuraFixSettings = ApplyAuraFixSettings
+ApplyAuraFixSettings()
+
+AuraFix.Frame:SetScript("OnEvent", function(self)
     AuraFix:UpdateAllAuras(self, "player", "HELPFUL", 20)
 end)
 AuraFix.Frame:RegisterUnitEvent("UNIT_AURA", "player")
 AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", 20)
 
--- Debuff support: create a second row for debuffs
-AuraFix.DebuffFrame = CreateFrame("Frame", "AuraFixDebuffFrame", UIParent)
-AuraFix.DebuffFrame:SetPoint("TOPLEFT", AuraFix.Frame, "BOTTOMLEFT", 0, -10)
-AuraFix.DebuffFrame:SetSize(400, 40)
-AuraFix.DebuffFrame.background = AuraFix.DebuffFrame:CreateTexture(nil, "BACKGROUND")
-AuraFix.DebuffFrame.background:SetAllPoints()
-AuraFix.DebuffFrame.background:SetColorTexture(1, 0.2, 0.2, 0.2) -- light red, semi-transparent
-
-AuraFix.DebuffFrame:SetScript("OnEvent", function(self, event, ...)
+AuraFix.DebuffFrame:SetScript("OnEvent", function(self)
     AuraFix:UpdateAllAuras(self, "player", "HARMFUL", 20)
 end)
 AuraFix.DebuffFrame:RegisterUnitEvent("UNIT_AURA", "player")
 AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", 20)
-
--- Patch for AuraFix.lua:
-function ApplyAuraFixSettings()
-    local width, height = GetScreenSize()
-    if AuraFix.Frame then
-        -- Set width for 12 buffs in a row, height will be adjusted dynamically
-        AuraFix.Frame:SetWidth(AuraFixDB.buffSize * 12 + (11 * 4))  -- Add spacing between icons
-        local anchor = AuraFixDB.buffGrow == "LEFT" and "TOPRIGHT" or "TOPLEFT"
-        AuraFix.Frame:SetPoint(anchor, UIParent, "BOTTOMLEFT", AuraFixDB.buffX + width/2, AuraFixDB.buffY + height/2)
-        for i, btn in ipairs(AuraFix.buttons or {}) do
-            btn:SetSize(AuraFixDB.buffSize, AuraFixDB.buffSize)
-        end
-    end
-    if AuraFix.DebuffFrame then
-        -- Set width for 12 debuffs in a row, height will be adjusted dynamically
-        AuraFix.DebuffFrame:SetWidth(AuraFixDB.debuffSize * 12 + (11 * 4))  -- Add spacing between icons
-        local anchor = AuraFixDB.debuffGrow == "LEFT" and "TOPRIGHT" or "TOPLEFT"
-        AuraFix.DebuffFrame:SetPoint(anchor, UIParent, "BOTTOMLEFT", AuraFixDB.debuffX + width/2, AuraFixDB.debuffY + height/2)
-        for i, btn in ipairs(AuraFix.debuffButtons or {}) do
-            btn:SetSize(AuraFixDB.debuffSize, AuraFixDB.debuffSize)
-        end
-    end
-    -- Force update all auras to reposition with new growth direction
-    if AuraFix.UpdateAllAuras then
-        AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", 20)
-        AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", 20)
-    end
-end
 
 -- Hide Blizzard's default buff and debuff frames if AuraFix is loaded
 local function HideBlizzardAuras()
@@ -358,7 +531,6 @@ end
 HideBlizzardAuras()
 
 
--- BlizzardEditMode modular integration
 local function enterEditMode_AuraFix()
     -- Enable movement and mouse for both frames
     AuraFix.Frame:EnableMouse(true)
@@ -368,8 +540,8 @@ local function enterEditMode_AuraFix()
     AuraFix.Frame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         local x, y = self:GetCenter()
-        AuraFixDB.buffX = x - (GetScreenWidth()/2)
-        AuraFixDB.buffY = y - (GetScreenHeight()/2)
+        AuraFixDB.buffX = x - (GetScreenWidth() / 2)
+        AuraFixDB.buffY = y - (GetScreenHeight() / 2)
         ApplyAuraFixSettings()
     end)
     AuraFix.Frame:Show()
@@ -381,8 +553,8 @@ local function enterEditMode_AuraFix()
     AuraFix.DebuffFrame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         local x, y = self:GetCenter()
-        AuraFixDB.debuffX = x - (GetScreenWidth()/2)
-        AuraFixDB.debuffY = y - (GetScreenHeight()/2)
+        AuraFixDB.debuffX = x - (GetScreenWidth() / 2)
+        AuraFixDB.debuffY = y - (GetScreenHeight() / 2)
         ApplyAuraFixSettings()
     end)
     AuraFix.DebuffFrame:Show()
@@ -412,10 +584,53 @@ if addon.AddEditModeVisibleModule then
     })
 end
 
--- Optionally, set up a DB key for the checkbox
 function addon.GetDBBool(key)
     if key == "EditModeShowAuraFixUI" then
         return true -- Always show for now, or hook to your savedvars
     end
     return false
 end
+
+
+-- SETTINGS PANEL: Add highlight checkboxes under config mode
+local function AddAuraFixSettingsPanel()
+    if not Settings or not Settings.RegisterAddonCategory then return end
+
+    local category, layout = Settings.RegisterVerticalLayoutCategory("AuraFix")
+
+    -- Buff Highlight Checkbox
+    local buffCB = Settings.CreateCheckBox(category, "Show Buff Background Highlight", function()
+        return AuraFixDB.showBuffBackground or false
+    end, function(checked)
+        AuraFixDB.showBuffBackground = checked
+        for _, btn in ipairs(AuraFix.buttons) do
+            if btn.bg and btn.filter == "HELPFUL" then
+                if checked then
+                    btn.bg:SetColorTexture(0, 0.4, 1, 0.4)
+                else
+                    btn.bg:SetColorTexture(0, 0, 0, 0.4)
+                end
+            end
+        end
+    end)
+
+    -- Debuff Highlight Checkbox
+    local debuffCB = Settings.CreateCheckBox(category, "Show Debuff Background Highlight", function()
+        return AuraFixDB.showDebuffBackground or false
+    end, function(checked)
+        AuraFixDB.showDebuffBackground = checked
+        for _, btn in ipairs(AuraFix.debuffButtons) do
+            if btn.bg and btn.filter == "HARMFUL" then
+                if checked then
+                    btn.bg:SetColorTexture(1, 0, 0, 0.4)
+                else
+                    btn.bg:SetColorTexture(0, 0, 0, 0.4)
+                end
+            end
+        end
+    end)
+
+    Settings.RegisterAddonCategory(category)
+end
+
+AddAuraFixSettingsPanel()
