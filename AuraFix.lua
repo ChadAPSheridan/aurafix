@@ -110,6 +110,13 @@ AuraFix.debuffButtons = {}
 -- Aura update logic (simplified, standalone)
 function AuraFix:UpdateAura(button, index)
     local aura = button.aura or (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and C_UnitAuras.GetAuraDataByIndex(button.unit, index, button.filter))
+
+    -- output the contents of aura for debugging
+    if AuraFixDB and AuraFixDB.debugMode then
+        for k, v in pairs(aura) do
+            print("AuraFix: UpdateAura", k, v)
+        end
+    end
     if not aura then
         if AuraFixDB and AuraFixDB.debugMode then
             print("AuraFix: UpdateAura no aura for", button.unit, index, button.filter)
@@ -122,8 +129,9 @@ function AuraFix:UpdateAura(button, index)
 
     local name = aura.name
     local icon = aura.icon
-    local count = (aura and (aura.applications or aura.count)) or 0
-    local debuffType = (aura and (aura.dispelName or aura.debuffType)) or ""
+    local count = aura.applications or 0
+    local debuffType = (aura and aura.dispelName) or ""
+    -- print("AuraFix: debuffType", debuffType)
     local duration = aura.duration
     local expiration = aura.expirationTime
     local modRate = aura.timeMod
@@ -176,10 +184,10 @@ end
 local function AuraFix_ApplyAllSettingsAndUpdate()
     if _G.ApplyAuraFixSettings then _G.ApplyAuraFixSettings() end
     if _G.AuraFix and _G.AuraFix.UpdateAllAuras and _G.AuraFix.Frame then
-        _G.AuraFix:UpdateAllAuras(_G.AuraFix.Frame, "player", "HELPFUL", 20)
+        _G.AuraFix:UpdateAllAuras(_G.AuraFix.Frame, "player", "HELPFUL")
     end
     if _G.AuraFix and _G.AuraFix.UpdateAllAuras and _G.AuraFix.DebuffFrame then
-        _G.AuraFix:UpdateAllAuras(_G.AuraFix.DebuffFrame, "player", "HARMFUL", 20)
+        _G.AuraFix:UpdateAllAuras(_G.AuraFix.DebuffFrame, "player", "HARMFUL")
     end
 end
 
@@ -300,7 +308,7 @@ end
 
 -- Main update loop: update all auras for a unit
 
-function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras, dummyAuraTable)
+function AuraFix:UpdateAllAuras(parent, unit, filter, dummyAuraTable)
     local prof = GetCurrentProfile()
     local buttonTable = (filter == "HELPFUL") and self.buttons or self.debuffButtons
     local grow = (filter == "HELPFUL") and (prof.buffGrow or "RIGHT") or (prof.debuffGrow or "RIGHT")
@@ -321,6 +329,7 @@ function AuraFix:UpdateAllAuras(parent, unit, filter, maxAuras, dummyAuraTable)
     local numRows = (filter == "HELPFUL") and (prof.buffRows or 1) or (prof.debuffRows or 1)
     local size = (filter == "HELPFUL") and (prof.buffSize or 32) or (prof.debuffSize or 32)
     local auras = {}
+    local maxAuras = numColumns * numRows
     if dummyAuraTable then
         for i = 1, math.min(maxAuras, #dummyAuraTable) do
             local aura = dummyAuraTable[i]
@@ -502,16 +511,16 @@ _G.ApplyAuraFixSettings = ApplyAuraFixSettings
 ApplyAuraFixSettings()
 
 AuraFix.Frame:SetScript("OnEvent", function(self)
-    AuraFix:UpdateAllAuras(self, "player", "HELPFUL", 20)
+    AuraFix:UpdateAllAuras(self, "player", "HELPFUL")
 end)
 AuraFix.Frame:RegisterUnitEvent("UNIT_AURA", "player")
-AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", 20)
+AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL")
 
 AuraFix.DebuffFrame:SetScript("OnEvent", function(self)
-    AuraFix:UpdateAllAuras(self, "player", "HARMFUL", 20)
+    AuraFix:UpdateAllAuras(self, "player", "HARMFUL")
 end)
 AuraFix.DebuffFrame:RegisterUnitEvent("UNIT_AURA", "player")
-AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", 20)
+AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL")
 
 -- Hide Blizzard's default buff and debuff frames if AuraFix is loaded
 local function HideBlizzardAuras()
