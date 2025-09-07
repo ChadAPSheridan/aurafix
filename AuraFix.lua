@@ -131,7 +131,6 @@ function AuraFix:UpdateAura(button, index)
     local icon = aura.icon
     local count = aura.applications or 0
     local debuffType = (aura and aura.dispelName) or ""
-    -- print("AuraFix: debuffType", debuffType)
     local duration = aura.duration
     local expiration = aura.expirationTime
     local modRate = aura.timeMod
@@ -312,7 +311,7 @@ function AuraFix:UpdateAllAuras(parent, unit, filter, dummyAuraTable)
     local prof = GetCurrentProfile()
     local buttonTable = (filter == "HELPFUL") and self.buttons or self.debuffButtons
     local grow = (filter == "HELPFUL") and (prof.buffGrow or "RIGHT") or (prof.debuffGrow or "RIGHT")
-    local sortMethod = prof.sortMethod or "INDEX"
+    local sortMethod = prof.sortMethod or "TIME"
     local filterText = (prof.filterText or ""):lower()
     local auraBlacklist = prof.auraBlacklist or {}
     -- Build a list for name substrings (lowercased) and a lookup table for spell IDs
