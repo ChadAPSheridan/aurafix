@@ -2,7 +2,7 @@
 ## Title: AuraFix
 ## Notes: Improves performance by optimizing aura frame updates
 ## Author: ChadAPSheridan
-## Version: 1.0.1
+## Version: 1.0.2
 ## IconTexture: Interface\AddOns\AuraFix\AuraFix.png
 
 ## SavedVariables: AuraFixDB
