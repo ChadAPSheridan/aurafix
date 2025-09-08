@@ -52,6 +52,18 @@ end
 -- Use ApplyAuraFixSettings from AuraFix.lua only
 AuraFix.ApplySettings = _G.ApplyAuraFixSettings
 
+-- Set backdrop function to highlight a frame (for debugging)
+local function SetHighlightBackdrop(frame)
+    if not frame or not frame.SetBackdrop then return end
+    frame:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    frame:SetBackdropColor(0, 0, 0, 0.5)
+    frame:SetBackdropBorderColor(1, 0, 0, 1)
+end
 
 -- Define the new profile popup ONCE at the top level
 if not StaticPopupDialogs["AURAFIX_NEW_PROFILE"] then
@@ -118,28 +130,27 @@ function CreateAuraFixOptionsPanel()
 
     -- Create main containers
     local generalContainer = CreateContainer("", panel, 650, 500)
-    generalContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -45)
+    generalContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -44)
 
     local buffContainer = CreateContainer("", panel, 650, 500)
-    buffContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -45)
+    buffContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -44)
 
     local filterContainer = CreateContainer("", panel, 650, 500)
-    filterContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -45)
+    filterContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -44)
 
-    -- Dummy aura update helper (must be defined before RefreshProfileDropdown)
-    local function ForceAuraFixVisualUpdate()
+    function ForceAuraFixVisualUpdate()
         if AuraFix and AuraFix.Frame and AuraFix.UpdateAllAuras then
             if AuraFixDB and AuraFixDB.configMode and AuraFix.DummyBuffs then
-                AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", 20, AuraFix.DummyBuffs)
+                AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", AuraFix.DummyBuffs)
             else
-                AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", 20)
+                AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL")
             end
         end
         if AuraFix and AuraFix.DebuffFrame and AuraFix.UpdateAllAuras then
             if AuraFixDB and AuraFixDB.configMode and AuraFix.DummyDebuffs then
-                AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", 20, AuraFix.DummyDebuffs)
+                AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", AuraFix.DummyDebuffs)
             else
-                AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", 20)
+                AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL")
             end
         end
     end
@@ -183,6 +194,7 @@ function CreateAuraFixOptionsPanel()
         end)
         UIDropDownMenu_SetSelectedValue(profileDD, AuraFixCharDB.currentProfile)
     end
+    _G.RefreshProfileDropdown = RefreshProfileDropdown
 
     RefreshProfileDropdown()
 
@@ -215,7 +227,7 @@ function CreateAuraFixOptionsPanel()
         return dd
     end
 
-  
+
     if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     -- Create all sliders
     local buffSizeSlider = CreateFrame("Slider", nil, buffContainer, "OptionsSliderTemplate")
@@ -796,7 +808,7 @@ function CreateAuraFixOptionsPanel()
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 }
-    })        
+    })
     blacklistContainer:SetBackdropColor(0, 0, 0, 0.3)
     blacklistContainer:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.8)
 
@@ -810,7 +822,7 @@ function CreateAuraFixOptionsPanel()
     scrollFrame:SetScrollChild(content)
 
     -- Function to refresh the blacklist display
-    local function RefreshBlacklist()
+    function RefreshBlacklist()
         -- Clear existing entries
         for _, child in pairs({ content:GetChildren() }) do
             child:Hide()
@@ -906,7 +918,8 @@ function CreateAuraFixOptionsPanel()
     blacklistContainer:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
         GameTooltip:AddLine(
-        "Add aura names (partial, case-insensitive) or spell IDs (exact) to prevent them from showing.", 1, 1, 1, true)
+            "Add aura names (partial, case-insensitive) or spell IDs (exact) to prevent them from showing.", 1, 1, 1,
+            true)
         GameTooltip:AddLine("- Names: partial, case-insensitive match", 1, 1, 1, true)
         GameTooltip:AddLine("- Spell IDs: exact match", 1, 1, 1, true)
         GameTooltip:Show()
@@ -936,20 +949,16 @@ function CreateAuraFixOptionsPanel()
             local tab = CreateFrame("Button", nil, tabContainer, "PanelTabButtonTemplate")
             tab:SetID(i)
             tab:SetText(tabInfo.name)
-            tab:SetSize(100, 24)
-            tab:SetPoint("TOPLEFT", tabContainer, "TOPLEFT", (i - 1) * 110, 5)
-            -- Adjust tab text position (move it down)
-            local textRegion = tab:GetFontString()
-            if textRegion then
-                textRegion:ClearAllPoints()
-                textRegion:SetPoint("CENTER", tab, "CENTER", 0, -4)
-            end
+            tab:SetSize(100, 40)
+            tab:SetPoint("TOPLEFT", tabContainer, "TOPLEFT", (i - 1) * 110, 0)
+
             tabFrames[i] = tab
 
             -- Flip tab textures vertically if present
-            local regions = {tab:GetRegions()}
+            local regions = { tab:GetRegions() }
             for _, region in ipairs(regions) do
                 if region and region.GetObjectType and region:GetObjectType() == "Texture" then
+                    ---@cast region TextureBase
                     region:SetTexCoord(0, 1, 1, 0)
                 end
             end
