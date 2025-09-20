@@ -1,9 +1,23 @@
+-- Main addon namespace initialization (first file loaded)
+local ADDON, AuraFix = ...
+AuraFix = AuraFix or _G[ADDON] or {}
+_G[ADDON] = AuraFix
+
+-- Local alias for faster access inside this file
+local AF = AuraFix
+
+-- Create a global debug functions
+function AuraFix.Debug(msg, level)
+    -- for compatibility, default level to 0 if not provided or invalid
+    level = tonumber(level) or 0
+    if AuraFixDB and AuraFixDB.debugMode and (AuraFixDB.debugLevel or 0) >= level then
+        print("AuraFix: " .. tostring(msg))
+    end
+end
 -- Helper to get current profile (for profile-aware settings)
 local function GetCurrentProfile()
     if _G.AuraFixDB and _G.AuraFixCharDB and _G.AuraFixDB.profiles and _G.AuraFixCharDB.currentProfile then
-        if _G.AuraFixDB.debugMode then
-            print("AuraFix: Current profile is '".._G.AuraFixCharDB.currentProfile.."'")
-        end
+        AF.Debug("AuraFix: Current profile is '".._G.AuraFixCharDB.currentProfile.."'", 1)
         return _G.AuraFixDB.profiles[_G.AuraFixCharDB.currentProfile] or {}
     end
     return AuraFixDB or {}
@@ -21,6 +35,7 @@ local defaults = {
     sortMethod = "INDEX",
     filterText = "",
     debugMode = false,  -- debug mode flag
+    debugLevel = 0,     -- debug level (0 = off, higher = more verbose)
     buffColumns = 12,   -- new setting for buff columns
     buffRows = 1,       -- new setting for buff rows
     debuffColumns = 12, -- new setting for debuff columns
@@ -32,8 +47,7 @@ for k, v in pairs(defaults) do
 end
 
 
-local AuraFix = {}
-_G.AuraFix = AuraFix
+local AuraFix = AF
 
 -- DevTool integration for debugging
 function AuraFix:DevInspect(data, label)
@@ -57,7 +71,7 @@ SlashCmdList["AURAFIXDEV"] = function()
 end
 
 -- BlizzardEditMode integration
-local addon = AuraFix
+local addon = AF
 
 local API, L = {}, {}
 addon.API = API
@@ -104,28 +118,25 @@ end
 local GetTime = _G.GetTime or function() return 0 end
 
 -- Table for aura buttons
-AuraFix.buttons = {}
-AuraFix.debuffButtons = {}
+AF.buttons = {}
+AF.debuffButtons = {}
 
 -- Aura update logic (simplified, standalone)
-function AuraFix:UpdateAura(button, index)
+function AF:UpdateAura(button, index)
     local aura = button.aura or (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex and C_UnitAuras.GetAuraDataByIndex(button.unit, index, button.filter))
 
     -- output the contents of aura for debugging
-    if AuraFixDB and AuraFixDB.debugMode then
         for k, v in pairs(aura) do
-            print("AuraFix: UpdateAura", k, v)
+            local msg = string.format("AuraFix: UpdateAura %s = %s", tostring(k), tostring(v))
+            AF.Debug(msg, 3)
         end
-    end
     if not aura then
-        if AuraFixDB and AuraFixDB.debugMode then
-            print("AuraFix: UpdateAura no aura for", button.unit, index, button.filter)
-        end
+            local msg = string.format("AuraFix: UpdateAura no aura for %s, %d, %s", button.unit, index, button.filter)
+            AF.Debug(msg, 3)
         return
     end
-    if AuraFixDB and AuraFixDB.debugMode then
-        print("AuraFix: UpdateAura", aura.name, aura.icon)
-    end
+        local msg = string.format("AuraFix: UpdateAura %s = %s", aura.name, aura.icon)
+        AF.Debug(msg, 3)
 
     local name = aura.name
     local icon = aura.icon
@@ -151,13 +162,13 @@ end
 
 -- Debug: Print a message when AuraFix is loaded
 local function AuraFix_DebugLoaded()
-    if not AuraFix._debugPrinted then
+    if not AF._debugPrinted then
         print("|cff00ff00AuraFix loaded and active!|r")
-        AuraFix._debugPrinted = true
+        AF._debugPrinted = true
     end
 
     if AuraFixDB.debugMode then
-        print("|cff00ff00AuraFix debug mode is enabled.|r")
+        print("|cff00ff00AuraFix debug mode is enabled at level |r" .. (AuraFixDB.debugLevel or 0) .. "|cff00ff00.|r")
     end
 end
 
@@ -214,25 +225,54 @@ end)
 -- Add debug toggle command
 SLASH_AURAFIXDEBUG1 = "/afdb"
 SlashCmdList["AURAFIXDEBUG"] = function(msg)
-    AuraFixDB.debugMode = not AuraFixDB.debugMode
-    if AuraFixDB.debugMode then
-        print("|cff00ff00AuraFix debug mode enabled.|r")
+    msg = (msg or ""):match("^%s*(.-)%s*$") -- trim
+
+    local n = tonumber(msg)
+    if n then
+        -- numeric argument: store level and set debugMode based on zero/non-zero
+        AuraFixDB.debugLevel = n
+        AuraFixDB.debugMode = (n ~= 0)
+        print(("|cff00ff00AuraFix debug level set to %d. Debug mode %s.|r"):format(n, AuraFixDB.debugMode and "enabled" or "disabled"))
+        return
+    end
+
+    -- If msg is empty or contains anything else, set level to 0 and disable debug
+    AuraFixDB.debugLevel = 0
+    AuraFixDB.debugMode = false
+    if msg == "" then
+        print("|cffff0000AuraFix debug input empty: debug disabled and level set to 0.|r")
     else
-        print("|cffff0000AuraFix debug mode disabled.|r")
+        print(("|cffff0000Invalid debug input '%s': debug disabled and level set to 0.|r"):format(msg))
     end
 end
 
-function AuraFix:Button_OnUpdate(elapsed)
+function AF:Button_OnUpdate(elapsed)
     if self.expiration and self.duration and self.duration > 0 then
         self.timeLeft = (self.expiration - GetTime()) / (self.modRate or 1)
         if self.timeLeft < 0.1 then
             self:Hide()
         else
-            if self.timeLeft > 60 then
-                self.durationText:SetText(string.format("%dm", math.floor(self.timeLeft / 60),
-                    math.floor(self.timeLeft % 60)))
+            if self.timeLeft >= 86400 then
+            local days = math.floor(self.timeLeft / 86400)
+            local hours = math.floor((self.timeLeft % 86400) / 3600)
+            if hours > 0 then
+                self.durationText:SetText(string.format("%dd %dh", days, hours))
             else
-                self.durationText:SetText(string.format("%.0f", self.timeLeft))
+                self.durationText:SetText(string.format("%dd", days))
+            end
+            elseif self.timeLeft >= 3600 then
+            local hours = math.floor(self.timeLeft / 3600)
+            local mins = math.floor((self.timeLeft % 3600) / 60)
+            if mins > 0 then
+                self.durationText:SetText(string.format("%dh %dm", hours, mins))
+            else
+                self.durationText:SetText(string.format("%dh", hours))
+            end
+            elseif self.timeLeft > 60 then
+            local mins = math.floor(self.timeLeft / 60)
+            self.durationText:SetText(string.format("%dm", mins))
+            else
+            self.durationText:SetText(string.format("%.0f", self.timeLeft))
             end
         end
     else
@@ -242,7 +282,7 @@ function AuraFix:Button_OnUpdate(elapsed)
 end
 
 -- Create a simple aura button
-function AuraFix:CreateAuraButton(parent, unit, filter, index)
+function AF:CreateAuraButton(parent, unit, filter, index)
     local button = CreateFrame("Button", nil, parent)
     button.unit = unit
     button.filter = filter
@@ -275,7 +315,7 @@ function AuraFix:CreateAuraButton(parent, unit, filter, index)
     button.durationText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     button.durationText:SetPoint("TOP", button, "BOTTOM", 0, 0)
 
-    button:SetScript("OnUpdate", AuraFix.Button_OnUpdate)
+    button:SetScript("OnUpdate", AF.Button_OnUpdate)
 
     -- Tooltip and right-click cancel
     button:SetScript("OnEnter", function(self)
@@ -307,7 +347,7 @@ end
 
 -- Main update loop: update all auras for a unit
 
-function AuraFix:UpdateAllAuras(parent, unit, filter, dummyAuraTable)
+function AF:UpdateAllAuras(parent, unit, filter, dummyAuraTable)
     local prof = GetCurrentProfile()
     local buttonTable = (filter == "HELPFUL") and self.buttons or self.debuffButtons
     local grow = (filter == "HELPFUL") and (prof.buffGrow or "RIGHT") or (prof.debuffGrow or "RIGHT")
@@ -453,18 +493,18 @@ local function GetScreenSize()
 end
 -- Apply settings from DB to frames
 
-AuraFix.Frame = CreateFrame("Frame", "AuraFixFrame", UIParent)
-AuraFix.Frame:SetPoint("CENTER")
+AF.Frame = CreateFrame("Frame", "AuraFixFrame", UIParent)
+AF.Frame:SetPoint("CENTER")
 
-AuraFix.DebuffFrame = CreateFrame("Frame", "AuraFixDebuffFrame", UIParent)
-AuraFix.DebuffFrame:SetPoint("CENTER", UIParent, "CENTER", 0, -50) -- Default position
+AF.DebuffFrame = CreateFrame("Frame", "AuraFixDebuffFrame", UIParent)
+AF.DebuffFrame:SetPoint("CENTER", UIParent, "CENTER", 0, -50) -- Default position
 
 local function ApplyAuraFixSettings()
     local prof = GetCurrentProfile()
     local screenWidth = GetScreenWidth()
     local screenHeight = GetScreenHeight()
     -- Buff frame
-    AuraFix.Frame:ClearAllPoints()
+    AF.Frame:ClearAllPoints()
     local buffWidth = (prof.buffColumns or 12) * ((prof.buffSize or 32) + 4)
     local buffHeight = (prof.buffRows or 1) * ((prof.buffSize or 32) + 8)
     local buffAnchor, parentAnchor
@@ -480,13 +520,13 @@ local function ApplyAuraFixSettings()
     local baseY = (screenHeight / 2) + (prof.buffY or 0)
     -- Convert center-based offset to top left/right anchor
     if buffAnchor == "TOPLEFT" then
-        AuraFix.Frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", baseX, baseY)
+        AF.Frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", baseX, baseY)
     else
-        AuraFix.Frame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", baseX, baseY)
+        AF.Frame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", baseX, baseY)
     end
-    AuraFix.Frame:SetSize(buffWidth, buffHeight)
+    AF.Frame:SetSize(buffWidth, buffHeight)
     -- Debuff frame (anchor logic matches buff frame)
-    AuraFix.DebuffFrame:ClearAllPoints()
+    AF.DebuffFrame:ClearAllPoints()
     local debuffWidth = (prof.debuffColumns or 12) * ((prof.debuffSize or 32) + 4)
     local debuffHeight = (prof.debuffRows or 1) * ((prof.debuffSize or 32) + 8)
     local debuffAnchor, debuffParentAnchor
@@ -500,26 +540,26 @@ local function ApplyAuraFixSettings()
     local debuffBaseX = (screenWidth / 2) + (prof.debuffX or 0)
     local debuffBaseY = (screenHeight / 2) + (prof.debuffY or -50)
     if debuffAnchor == "TOPLEFT" then
-        AuraFix.DebuffFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", debuffBaseX, debuffBaseY)
+        AF.DebuffFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", debuffBaseX, debuffBaseY)
     else
-        AuraFix.DebuffFrame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", debuffBaseX, debuffBaseY)
+        AF.DebuffFrame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", debuffBaseX, debuffBaseY)
     end
-    AuraFix.DebuffFrame:SetSize(debuffWidth, debuffHeight)
+    AF.DebuffFrame:SetSize(debuffWidth, debuffHeight)
 end
 _G.ApplyAuraFixSettings = ApplyAuraFixSettings
 ApplyAuraFixSettings()
 
-AuraFix.Frame:SetScript("OnEvent", function(self)
-    AuraFix:UpdateAllAuras(self, "player", "HELPFUL")
+AF.Frame:SetScript("OnEvent", function(self)
+    AF:UpdateAllAuras(self, "player", "HELPFUL")
 end)
-AuraFix.Frame:RegisterUnitEvent("UNIT_AURA", "player")
-AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL")
+AF.Frame:RegisterUnitEvent("UNIT_AURA", "player")
+AF:UpdateAllAuras(AF.Frame, "player", "HELPFUL")
 
-AuraFix.DebuffFrame:SetScript("OnEvent", function(self)
-    AuraFix:UpdateAllAuras(self, "player", "HARMFUL")
+AF.DebuffFrame:SetScript("OnEvent", function(self)
+    AF:UpdateAllAuras(self, "player", "HARMFUL")
 end)
-AuraFix.DebuffFrame:RegisterUnitEvent("UNIT_AURA", "player")
-AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL")
+AF.DebuffFrame:RegisterUnitEvent("UNIT_AURA", "player")
+AF:UpdateAllAuras(AF.DebuffFrame, "player", "HARMFUL")
 
 -- Hide Blizzard's default buff and debuff frames if AuraFix is loaded
 local function HideBlizzardAuras()
@@ -541,45 +581,45 @@ HideBlizzardAuras()
 
 local function enterEditMode_AuraFix()
     -- Enable movement and mouse for both frames
-    AuraFix.Frame:EnableMouse(true)
-    AuraFix.Frame:SetMovable(true)
-    AuraFix.Frame:RegisterForDrag("LeftButton")
-    AuraFix.Frame:SetScript("OnDragStart", AuraFix.Frame.StartMoving)
-    AuraFix.Frame:SetScript("OnDragStop", function(self)
+    AF.Frame:EnableMouse(true)
+    AF.Frame:SetMovable(true)
+    AF.Frame:RegisterForDrag("LeftButton")
+    AF.Frame:SetScript("OnDragStart", AF.Frame.StartMoving)
+    AF.Frame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         local x, y = self:GetCenter()
         AuraFixDB.buffX = x - (GetScreenWidth() / 2)
         AuraFixDB.buffY = y - (GetScreenHeight() / 2)
         ApplyAuraFixSettings()
     end)
-    AuraFix.Frame:Show()
+    AF.Frame:Show()
 
-    AuraFix.DebuffFrame:EnableMouse(true)
-    AuraFix.DebuffFrame:SetMovable(true)
-    AuraFix.DebuffFrame:RegisterForDrag("LeftButton")
-    AuraFix.DebuffFrame:SetScript("OnDragStart", AuraFix.DebuffFrame.StartMoving)
-    AuraFix.DebuffFrame:SetScript("OnDragStop", function(self)
+    AF.DebuffFrame:EnableMouse(true)
+    AF.DebuffFrame:SetMovable(true)
+    AF.DebuffFrame:RegisterForDrag("LeftButton")
+    AF.DebuffFrame:SetScript("OnDragStart", AF.DebuffFrame.StartMoving)
+    AF.DebuffFrame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         local x, y = self:GetCenter()
         AuraFixDB.debuffX = x - (GetScreenWidth() / 2)
         AuraFixDB.debuffY = y - (GetScreenHeight() / 2)
         ApplyAuraFixSettings()
     end)
-    AuraFix.DebuffFrame:Show()
+    AF.DebuffFrame:Show()
 end
 
 local function exitEditMode_AuraFix()
     -- Disable movement and mouse for both frames
-    AuraFix.Frame:EnableMouse(false)
-    AuraFix.Frame:SetMovable(false)
-    AuraFix.Frame:SetScript("OnDragStart", nil)
-    AuraFix.Frame:SetScript("OnDragStop", nil)
-    AuraFix.DebuffFrame:EnableMouse(false)
-    AuraFix.DebuffFrame:SetMovable(false)
-    AuraFix.DebuffFrame:SetScript("OnDragStart", nil)
-    AuraFix.DebuffFrame:SetScript("OnDragStop", nil)
-    AuraFix.Frame:Show()
-    AuraFix.DebuffFrame:Show()
+    AF.Frame:EnableMouse(false)
+    AF.Frame:SetMovable(false)
+    AF.Frame:SetScript("OnDragStart", nil)
+    AF.Frame:SetScript("OnDragStop", nil)
+    AF.DebuffFrame:EnableMouse(false)
+    AF.DebuffFrame:SetMovable(false)
+    AF.DebuffFrame:SetScript("OnDragStart", nil)
+    AF.DebuffFrame:SetScript("OnDragStop", nil)
+    AF.Frame:Show()
+    AF.DebuffFrame:Show()
 end
 
 -- Register AuraFix as a module for BlizzardEditMode
@@ -611,7 +651,7 @@ local function AddAuraFixSettingsPanel()
         return AuraFixDB.showBuffBackground or false
     end, function(checked)
         AuraFixDB.showBuffBackground = checked
-        for _, btn in ipairs(AuraFix.buttons) do
+        for _, btn in ipairs(AF.buttons) do
             if btn.bg and btn.filter == "HELPFUL" then
                 if checked then
                     btn.bg:SetColorTexture(0, 0.4, 1, 0.4)
@@ -627,7 +667,7 @@ local function AddAuraFixSettingsPanel()
         return AuraFixDB.showDebuffBackground or false
     end, function(checked)
         AuraFixDB.showDebuffBackground = checked
-        for _, btn in ipairs(AuraFix.debuffButtons) do
+        for _, btn in ipairs(AF.debuffButtons) do
             if btn.bg and btn.filter == "HARMFUL" then
                 if checked then
                     btn.bg:SetColorTexture(1, 0, 0, 0.4)

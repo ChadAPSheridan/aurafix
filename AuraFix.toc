@@ -6,6 +6,7 @@
 ## IconTexture: Interface\AddOns\AuraFix\AuraFix.png
 
 ## SavedVariables: AuraFixDB
+## SavedVariablesPerCharacter: AuraFixCharDB
 ## LoadOnDemand: 0
 ## Dependencies: Blizzard_FrameXML
 AuraFix.lua
