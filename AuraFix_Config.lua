@@ -1,3 +1,6 @@
+-- Addon name (should match the folder name)
+local ADDON = "AuraFix"
+
 -- Default settings for profiles
 local defaults = {
     buffSize = 32,
@@ -23,13 +26,28 @@ local function getDefaultProfile()
 end
 
 local function InitializeDB()
+    if AuraFixDB.debugMode then
+        print("AuraFix: InitializeDB() called")
+    end
     if not AuraFixDB then AuraFixDB = {} end
     if not AuraFixDB.profiles then
         AuraFixDB.profiles = { ["Default"] = getDefaultProfile() }
     end
     if not AuraFixCharDB then AuraFixCharDB = {} end
-    if not AuraFixCharDB.currentProfile or not AuraFixDB.profiles[AuraFixCharDB.currentProfile] then
+    if not AuraFixCharDB.currentProfile then
         AuraFixCharDB.currentProfile = "Default"
+    end
+    -- Ensure the current profile exists
+    if not AuraFixDB.profiles[AuraFixCharDB.currentProfile] then
+        AuraFixDB.profiles[AuraFixCharDB.currentProfile] = getDefaultProfile()
+    end
+    if AuraFixDB.debugMode then
+        print("AuraFix: InitializeDB() completed. Current profile: " .. tostring(AuraFixCharDB.currentProfile))
+    end
+    local profileNames = {}
+    for k in pairs(AuraFixDB.profiles or {}) do table.insert(profileNames, k) end
+    if AuraFixDB.debugMode then
+        print("AuraFix: Available profiles: " .. table.concat(profileNames, ", "))
     end
     for k, v in pairs(defaults) do
         if AuraFixDB[k] ~= nil and (not AuraFixDB.profiles["Default"][k]) then
@@ -162,6 +180,7 @@ function CreateAuraFixOptionsPanel()
 
     local profileDD = CreateFrame("Frame", nil, generalContainer, "UIDropDownMenuTemplate")
     profileDD:SetPoint("LEFT", profileLabel, "RIGHT", 4, 0)
+    UIDropDownMenu_SetWidth(profileDD, 120)
 
     local newProfileBtn = CreateFrame("Button", nil, generalContainer, "UIPanelButtonTemplate")
     newProfileBtn:SetSize(100, 22)
@@ -172,10 +191,17 @@ function CreateAuraFixOptionsPanel()
     end)
 
     local function RefreshProfileDropdown()
-        if not AuraFixDB or not AuraFixDB.profiles then return end
+        if not AuraFixDB or not AuraFixDB.profiles or not AuraFixCharDB then
+            print("AuraFix: RefreshProfileDropdown early return - DB not ready")
+            return
+        end
         local items = {}
         for k in pairs(AuraFixDB.profiles) do table.insert(items, k) end
         table.sort(items)
+        if AuraFixDB.debugMode then
+            print("AuraFix: RefreshProfileDropdown found " .. #items .. " profiles: " .. table.concat(items, ", "))
+            print("AuraFix: Current profile is: " .. tostring(AuraFixCharDB.currentProfile))
+        end
         ForceAuraFixVisualUpdate()
         UIDropDownMenu_Initialize(profileDD, function(self, level)
             for _, name in ipairs(items) do
@@ -193,10 +219,15 @@ function CreateAuraFixOptionsPanel()
             end
         end)
         UIDropDownMenu_SetSelectedValue(profileDD, AuraFixCharDB.currentProfile)
+        -- Manually set the text on the dropdown button
+        if profileDD.Button and profileDD.Button.Text then
+            profileDD.Button.Text:SetText(AuraFixCharDB.currentProfile)
+        end
+        if AuraFixDB.debugMode then
+            print("AuraFix: Dropdown set to show: " .. tostring(AuraFixCharDB.currentProfile))
+        end
     end
     _G.RefreshProfileDropdown = RefreshProfileDropdown
-
-    RefreshProfileDropdown()
 
     local function CreateDropdown(parent, label, items, value, onChange)
         local dd = CreateFrame("Frame", nil, parent, "UIDropDownMenuTemplate")
@@ -1006,7 +1037,9 @@ local panelRegistered = false
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
         local loadedAddon = ...
+        print("AuraFix: ADDON_LOADED event fired for: " .. tostring(loadedAddon))
         if loadedAddon == ADDON then
+            print("AuraFix: Our addon loaded, calling InitializeDB()")
             InitializeDB()
             -- Don't apply settings yet, wait for PLAYER_ENTERING_WORLD
             self:UnregisterEvent("ADDON_LOADED")
