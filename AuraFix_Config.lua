@@ -1,3 +1,8 @@
+-- Addon namespace (use varargs namespace passed from main file)
+local ADDON, AuraFix = ...
+AuraFix = AuraFix or _G[ADDON] or {}
+local AF = AuraFix
+
 -- Default settings for profiles
 local defaults = {
     buffSize = 32,
@@ -23,21 +28,42 @@ local function getDefaultProfile()
 end
 
 local function InitializeDB()
+    AF.Debug("AuraFix: InitializeDB() called", 1)
     if not AuraFixDB then AuraFixDB = {} end
     if not AuraFixDB.profiles then
         AuraFixDB.profiles = { ["Default"] = getDefaultProfile() }
     end
-    if not AuraFixCharDB then AuraFixCharDB = {} end
-    if not AuraFixCharDB.currentProfile or not AuraFixDB.profiles[AuraFixCharDB.currentProfile] then
-        AuraFixCharDB.currentProfile = "Default"
+
+    -- Initialize character-specific database
+    if not AuraFixCharDB then
+        AuraFixCharDB = {}
+        AF.Debug("AuraFix: Created new AuraFixCharDB", 1)
     end
+
+    -- Set default profile if none is set
+    if not AuraFixCharDB.currentProfile then
+        AuraFixCharDB.currentProfile = "Default"
+        AF.Debug("AuraFix: Set default profile to 'Default'", 1)
+    end
+
+    -- Ensure the current profile exists in the profiles database
+    if not AuraFixDB.profiles[AuraFixCharDB.currentProfile] then
+        AF.Debug("AuraFix: Profile '" .. tostring(AuraFixCharDB.currentProfile) .. "' not found, creating it", 1)
+        AuraFixDB.profiles[AuraFixCharDB.currentProfile] = getDefaultProfile()
+    end
+
+    AF.Debug("AuraFix: InitializeDB() completed. Current profile: " .. tostring(AuraFixCharDB.currentProfile), 1)
+    local profileNames = {}
+    for k in pairs(AuraFixDB.profiles or {}) do table.insert(profileNames, k) end
+    AF.Debug("AuraFix: Available profiles: " .. table.concat(profileNames, ", "), 1)
+
     for k, v in pairs(defaults) do
         if AuraFixDB[k] ~= nil and (not AuraFixDB.profiles["Default"][k]) then
             AuraFixDB.profiles["Default"][k] = AuraFixDB[k]
             AuraFixDB[k] = nil
         end
     end
-    AuraFix.profile = AuraFixDB.profiles[AuraFixCharDB.currentProfile]
+    AF.profile = AuraFixDB.profiles[AuraFixCharDB.currentProfile]
 end
 _G.InitializeDB = InitializeDB
 
@@ -50,7 +76,7 @@ end
 
 
 -- Use ApplyAuraFixSettings from AuraFix.lua only
-AuraFix.ApplySettings = _G.ApplyAuraFixSettings
+AF.ApplySettings = _G.ApplyAuraFixSettings
 
 -- Set backdrop function to highlight a frame (for debugging)
 local function SetHighlightBackdrop(frame)
@@ -84,7 +110,7 @@ if not StaticPopupDialogs["AURAFIX_NEW_PROFILE"] then
             end
             AuraFixDB.profiles[name] = getDefaultProfile()
             AuraFixCharDB.currentProfile = name
-            AuraFix.profile = AuraFixDB.profiles[name]
+            AF.profile = AuraFixDB.profiles[name]
             if _G.ApplyAuraFixSettings then _G.ApplyAuraFixSettings() end
             if _G.CreateAuraFixOptionsPanel then
                 local panel = _G.CreateAuraFixOptionsPanel()
@@ -139,18 +165,18 @@ function CreateAuraFixOptionsPanel()
     filterContainer:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -44)
 
     function ForceAuraFixVisualUpdate()
-        if AuraFix and AuraFix.Frame and AuraFix.UpdateAllAuras then
-            if AuraFixDB and AuraFixDB.configMode and AuraFix.DummyBuffs then
-                AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL", AuraFix.DummyBuffs)
+        if AF and AF.Frame and AF.UpdateAllAuras then
+            if AuraFixDB and AuraFixDB.configMode and AF.DummyBuffs then
+                AF:UpdateAllAuras(AF.Frame, "player", "HELPFUL", AF.DummyBuffs)
             else
-                AuraFix:UpdateAllAuras(AuraFix.Frame, "player", "HELPFUL")
+                AF:UpdateAllAuras(AF.Frame, "player", "HELPFUL")
             end
         end
-        if AuraFix and AuraFix.DebuffFrame and AuraFix.UpdateAllAuras then
-            if AuraFixDB and AuraFixDB.configMode and AuraFix.DummyDebuffs then
-                AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL", AuraFix.DummyDebuffs)
+        if AF and AF.DebuffFrame and AF.UpdateAllAuras then
+            if AuraFixDB and AuraFixDB.configMode and AF.DummyDebuffs then
+                AF:UpdateAllAuras(AF.DebuffFrame, "player", "HARMFUL", AF.DummyDebuffs)
             else
-                AuraFix:UpdateAllAuras(AuraFix.DebuffFrame, "player", "HARMFUL")
+                AF:UpdateAllAuras(AF.DebuffFrame, "player", "HARMFUL")
             end
         end
     end
@@ -162,6 +188,7 @@ function CreateAuraFixOptionsPanel()
 
     local profileDD = CreateFrame("Frame", nil, generalContainer, "UIDropDownMenuTemplate")
     profileDD:SetPoint("LEFT", profileLabel, "RIGHT", 4, 0)
+    UIDropDownMenu_SetWidth(profileDD, 120)
 
     local newProfileBtn = CreateFrame("Button", nil, generalContainer, "UIPanelButtonTemplate")
     newProfileBtn:SetSize(100, 22)
@@ -172,10 +199,15 @@ function CreateAuraFixOptionsPanel()
     end)
 
     local function RefreshProfileDropdown()
-        if not AuraFixDB or not AuraFixDB.profiles then return end
+        if not AuraFixDB or not AuraFixDB.profiles or not AuraFixCharDB then
+            print("AuraFix: RefreshProfileDropdown early return - DB not ready")
+            return
+        end
         local items = {}
         for k in pairs(AuraFixDB.profiles) do table.insert(items, k) end
         table.sort(items)
+        AF.Debug("AuraFix: RefreshProfileDropdown found " .. #items .. " profiles: " .. table.concat(items, ", "), 1)
+        AF.Debug("AuraFix: Current profile is: " .. tostring(AuraFixCharDB.currentProfile), 1)
         ForceAuraFixVisualUpdate()
         UIDropDownMenu_Initialize(profileDD, function(self, level)
             for _, name in ipairs(items) do
@@ -184,7 +216,7 @@ function CreateAuraFixOptionsPanel()
                 info.checked = (name == AuraFixCharDB.currentProfile)
                 info.func = function()
                     AuraFixCharDB.currentProfile = name
-                    AuraFix.profile = AuraFixDB.profiles[name]
+                    AF.profile = AuraFixDB.profiles[name]
                     ApplyAuraFixSettings()
                     if panel.OnShow then panel:OnShow() end
                     if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
@@ -193,10 +225,13 @@ function CreateAuraFixOptionsPanel()
             end
         end)
         UIDropDownMenu_SetSelectedValue(profileDD, AuraFixCharDB.currentProfile)
+        -- Manually set the text on the dropdown button
+        if profileDD.Button and profileDD.Button.Text then
+            profileDD.Button.Text:SetText(AuraFixCharDB.currentProfile)
+        end
+        AF.Debug("AuraFix: Dropdown set to show: " .. tostring(AuraFixCharDB.currentProfile), 1)
     end
     _G.RefreshProfileDropdown = RefreshProfileDropdown
-
-    RefreshProfileDropdown()
 
     local function CreateDropdown(parent, label, items, value, onChange)
         local dd = CreateFrame("Frame", nil, parent, "UIDropDownMenuTemplate")
@@ -235,7 +270,7 @@ function CreateAuraFixOptionsPanel()
     buffSizeSlider:SetValueStep(1)
     buffSizeSlider:SetPoint("TOPLEFT", buffContainer, "TOPLEFT", 20, -40)
     buffSizeSlider:SetWidth(200)
-    buffSizeSlider:SetValue(AuraFixDB.buffSize)
+    buffSizeSlider:SetValue(tonumber(getProfile().buffSize) or 32)
     if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
     buffSizeSlider.Text:SetText("Buff Size")
     buffSizeSlider.Low:SetText("16")
@@ -258,9 +293,9 @@ function CreateAuraFixOptionsPanel()
     if ForceAuraFixVisualUpdate then ForceAuraFixVisualUpdate() end
 
     buffSizeSlider:SetScript("OnValueChanged", function(self, value)
-        if AuraFixDB.debugMode then
-            print("Buff Size Slider Changed: ", value)
-        end
+        local msg = string.format("Buff Size Slider Changed: %d", value)
+        AF.Debug(msg, 2)
+
         local prof = getProfile()
         prof.buffSize = value
         buffSizeBox:SetText(tostring(math.floor(value)))
@@ -273,7 +308,7 @@ function CreateAuraFixOptionsPanel()
     debuffSizeSlider:SetValueStep(1)
     debuffSizeSlider:SetPoint("TOPRIGHT", buffContainer, "TOPRIGHT", -80, -40)
     debuffSizeSlider:SetWidth(200)
-    debuffSizeSlider:SetValue(AuraFixDB.debuffSize)
+    debuffSizeSlider:SetValue(tonumber(getProfile().debuffSize) or 32)
     debuffSizeSlider.Text:SetText("Debuff Size")
     debuffSizeSlider.Low:SetText("16")
     debuffSizeSlider.High:SetText("64")
@@ -294,9 +329,9 @@ function CreateAuraFixOptionsPanel()
     end)
 
     debuffSizeSlider:SetScript("OnValueChanged", function(self, value)
-        if AuraFixDB.debugMode then
-            print("Debuff Size Slider Changed: ", value)
-        end
+        local msg = string.format("Debuff Size Slider Changed: %d", value)
+        AF.Debug(msg, 2)
+
         local prof = getProfile()
         prof.debuffSize = value
         debuffSizeBox:SetText(tostring(math.floor(value)))
@@ -309,7 +344,7 @@ function CreateAuraFixOptionsPanel()
     buffXSlider:SetValueStep(1)
     buffXSlider:SetPoint("TOPLEFT", buffSizeSlider, "BOTTOMLEFT", 0, -40)
     buffXSlider:SetWidth(200)
-    buffXSlider:SetValue(math.floor(AuraFixDB.buffX))
+    buffXSlider:SetValue(tonumber(getProfile().buffX) or 0)
     buffXSlider.Text:SetText("Buff X Offset")
     buffXSlider.Low:SetText(-math.floor(screenWidth / 2))
     buffXSlider.High:SetText(math.floor(screenWidth / 2))
@@ -331,9 +366,8 @@ function CreateAuraFixOptionsPanel()
 
     buffXSlider:SetScript("OnValueChanged", function(self, value)
         value = math.floor(value)
-        if AuraFixDB.debugMode then
-            print("Buff X Offset Slider Changed: ", value)
-        end
+        local msg = string.format("Buff X Offset Slider Changed: %d", value)
+        AF.Debug(msg, 2)
         local prof = getProfile()
         prof.buffX = value
         buffXBox:SetText(tostring(value))
@@ -347,7 +381,7 @@ function CreateAuraFixOptionsPanel()
     buffYSlider:SetValueStep(1)
     buffYSlider:SetPoint("TOPLEFT", buffXSlider, "BOTTOMLEFT", 0, -40)
     buffYSlider:SetWidth(200)
-    buffYSlider:SetValue(math.floor(AuraFixDB.buffY))
+    buffYSlider:SetValue(tonumber(getProfile().buffY) or 0)
     buffYSlider.Text:SetText("Buff Y Offset")
     buffYSlider.Low:SetText(-math.floor(screenHeight / 2))
     buffYSlider.High:SetText(math.floor(screenHeight / 2))
@@ -369,9 +403,8 @@ function CreateAuraFixOptionsPanel()
 
     buffYSlider:SetScript("OnValueChanged", function(self, value)
         value = math.floor(value)
-        if AuraFixDB.debugMode then
-            print("Buff Y Offset Slider Changed: ", value)
-        end
+        local msg = string.format("Buff Y Offset Slider Changed: %d", value)
+        AF.Debug(msg, 2)
         local prof = getProfile()
         prof.buffY = value
         buffYBox:SetText(tostring(value))
@@ -385,7 +418,7 @@ function CreateAuraFixOptionsPanel()
     buffColsSlider:SetValueStep(1)
     buffColsSlider:SetPoint("TOPLEFT", buffYSlider, "BOTTOMLEFT", 0, -40)
     buffColsSlider:SetWidth(200)
-    buffColsSlider:SetValue(math.floor(AuraFixDB.buffColumns))
+    buffColsSlider:SetValue(tonumber(getProfile().buffColumns) or 12)
     buffColsSlider.Text:SetText("Buff Columns")
     buffColsSlider.Low:SetText("1")
     buffColsSlider.High:SetText("24")
@@ -421,7 +454,7 @@ function CreateAuraFixOptionsPanel()
     buffRowsSlider:SetValueStep(1)
     buffRowsSlider:SetPoint("TOPLEFT", buffColsSlider, "BOTTOMLEFT", 0, -40)
     buffRowsSlider:SetWidth(200)
-    buffRowsSlider:SetValue(math.floor(AuraFixDB.buffRows))
+    buffRowsSlider:SetValue(tonumber(getProfile().buffRows) or 2)
     buffRowsSlider.Text:SetText("Buff Rows")
     buffRowsSlider.Low:SetText("1")
     buffRowsSlider.High:SetText("10")
@@ -461,7 +494,7 @@ function CreateAuraFixOptionsPanel()
     debuffXSlider:SetValueStep(1)
     debuffXSlider:SetPoint("TOPLEFT", debuffSizeSlider, "BOTTOMLEFT", 0, -40)
     debuffXSlider:SetWidth(200)
-    debuffXSlider:SetValue(math.floor(AuraFixDB.debuffX))
+    debuffXSlider:SetValue(tonumber(getProfile().debuffX) or 0)
     debuffXSlider.Text:SetText("Debuff X Offset")
     debuffXSlider.Low:SetText(-math.floor(screenWidth / 2))
     debuffXSlider.High:SetText(math.floor(screenWidth / 2))
@@ -483,9 +516,8 @@ function CreateAuraFixOptionsPanel()
 
     debuffXSlider:SetScript("OnValueChanged", function(self, value)
         value = math.floor(value)
-        if AuraFixDB.debugMode then
-            print("Debuff X Offset Slider Changed: ", value)
-        end
+        local msg = string.format("Debuff X Offset Slider Changed: %d", value)
+        AF.Debug(msg, 2)
         local prof = getProfile()
         prof.debuffX = value
         debuffXBox:SetText(tostring(value))
@@ -499,7 +531,7 @@ function CreateAuraFixOptionsPanel()
     debuffYSlider:SetValueStep(1)
     debuffYSlider:SetPoint("TOPLEFT", debuffXSlider, "BOTTOMLEFT", 0, -40)
     debuffYSlider:SetWidth(200)
-    debuffYSlider:SetValue(math.floor(AuraFixDB.debuffY))
+    debuffYSlider:SetValue(tonumber(getProfile().debuffY) or 0)
     debuffYSlider.Text:SetText("Debuff Y Offset")
     debuffYSlider.Low:SetText(-math.floor(screenHeight / 2))
     debuffYSlider.High:SetText(math.floor(screenHeight / 2))
@@ -521,9 +553,8 @@ function CreateAuraFixOptionsPanel()
 
     debuffYSlider:SetScript("OnValueChanged", function(self, value)
         value = math.floor(value)
-        if AuraFixDB.debugMode then
-            print("Debuff Y Offset Slider Changed: ", value)
-        end
+        local msg = string.format("Debuff Y Offset Slider Changed: %d", value)
+        AF.Debug(msg, 2)
         local prof = getProfile()
         prof.debuffY = value
         debuffYBox:SetText(tostring(value))
@@ -537,7 +568,7 @@ function CreateAuraFixOptionsPanel()
     debuffColsSlider:SetValueStep(1)
     debuffColsSlider:SetPoint("TOPLEFT", debuffYSlider, "BOTTOMLEFT", 0, -40)
     debuffColsSlider:SetWidth(200)
-    debuffColsSlider:SetValue(math.floor(AuraFixDB.debuffColumns))
+    debuffColsSlider:SetValue(tonumber(getProfile().debuffColumns) or 12)
     debuffColsSlider.Text:SetText("Debuff Columns")
     debuffColsSlider.Low:SetText("1")
     debuffColsSlider.High:SetText("24")
@@ -573,7 +604,7 @@ function CreateAuraFixOptionsPanel()
     debuffRowsSlider:SetValueStep(1)
     debuffRowsSlider:SetPoint("TOPLEFT", debuffColsSlider, "BOTTOMLEFT", 0, -40)
     debuffRowsSlider:SetWidth(200)
-    debuffRowsSlider:SetValue(math.floor(AuraFixDB.debuffRows))
+    debuffRowsSlider:SetValue(tonumber(getProfile().debuffRows) or 2)
     debuffRowsSlider.Text:SetText("Debuff Rows")
     debuffRowsSlider.Low:SetText("1")
     debuffRowsSlider.High:SetText("10")
@@ -648,10 +679,10 @@ function CreateAuraFixOptionsPanel()
             return math.random(60, 600) -- seconds
         end
         -- Dummy Buffs
-        AuraFix.DummyBuffs = {}
+        AF.DummyBuffs = {}
         for i = 1, 32 do
             local dur = randomDuration()
-            AuraFix.DummyBuffs[i] = {
+            AF.DummyBuffs[i] = {
                 name = "Dummy Buff " .. i,
                 icon = "Interface\\AddOns\\AuraFix\\AuraFix.png",
                 count = i % 5,
@@ -664,10 +695,10 @@ function CreateAuraFixOptionsPanel()
             }
         end
         -- Dummy Debuffs
-        AuraFix.DummyDebuffs = {}
+        AF.DummyDebuffs = {}
         for i = 1, 32 do
             local dur = randomDuration()
-            AuraFix.DummyDebuffs[i] = {
+            AF.DummyDebuffs[i] = {
                 name = "Dummy Debuff " .. i,
                 icon = "Interface\\AddOns\\AuraFix\\AuraFix.png",
                 count = i % 3,
@@ -682,10 +713,10 @@ function CreateAuraFixOptionsPanel()
     end
 
     local function ClearDummyAuras()
-        if not AuraFix then return end
-        AuraFix.DummyBuffs = nil
-        AuraFix.DummyDebuffs = nil
-        AuraFix.ConfigDummyStartTime = nil
+        if not AF then return end
+        AF.DummyBuffs = nil
+        AF.DummyDebuffs = nil
+        AF.ConfigDummyStartTime = nil
     end
 
     configModeCheck:SetScript("OnClick", function(self)
@@ -1006,7 +1037,9 @@ local panelRegistered = false
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
         local loadedAddon = ...
+        print("AuraFix: ADDON_LOADED event fired for: " .. tostring(loadedAddon))
         if loadedAddon == ADDON then
+            print("AuraFix: Our addon loaded, calling InitializeDB()")
             InitializeDB()
             -- Don't apply settings yet, wait for PLAYER_ENTERING_WORLD
             self:UnregisterEvent("ADDON_LOADED")
@@ -1028,7 +1061,7 @@ end)
 local panelCategory
 function RegisterAuraFixPanel()
     if panelRegistered then return end
-    -- print("[AuraFix] RegisterAuraFixPanel called")
+    AF.Debug("[AuraFix] RegisterAuraFixPanel called", 3)
     CreateAuraFixOptionsPanel() -- Always call to ensure panel exists
     if Settings and Settings.RegisterAddOnCategory and Settings.RegisterCanvasLayoutCategory then
         panelCategory = Settings.RegisterCanvasLayoutCategory(panel, "AuraFix")

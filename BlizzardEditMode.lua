@@ -1,7 +1,11 @@
+-- Addon namespace (use varargs namespace passed from main file)
+local ADDON, AuraFix = ...
+AuraFix = AuraFix or _G[ADDON] or {}
+local AF = AuraFix
+
 -- Add a checkbox to toggle Aurafix Elements in Edit Mode
 
-
-local addon = _G.AuraFix
+local addon = AF
 local API = addon and addon.API
 local L = addon and addon.L
 
